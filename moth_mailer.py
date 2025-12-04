@@ -73,30 +73,33 @@ def fetch_random_moth():
     sent_moths = get_sent_moths()
     print(f"Already sent {len(sent_moths)} unique moths")
     params = {"taxon_id": MOTH_TAXON_ID, "quality_grade": "research", "photos": "true", "photo_licensed": "true", "per_page": 200, "order_by": "random", "without_taxon_id": 47224}
-    response = requests.get(f"{INATURALIST_API}/observations", params=params, headers={"User-Agent": "MothMailer/1.0"})
-    response.raise_for_status()
-    results = response.json()["results"]
-    if not results:
-        raise Exception("No moth observations found")
-    new_moths = [m for m in results if m["id"] not in sent_moths]
-    new_moths = [m for m in new_moths if m.get("taxon", {}).get("preferred_common_name")]
-    favorited_moths = [m for m in new_moths if m.get("faves_count", 0) > 0]
-    print(f"Found {len(new_moths)} unsent named moths, {len(favorited_moths)} with favorites")
-    if favorited_moths:
-        new_moths = favorited_moths
-    if not new_moths:
-        print("Retrying...")
+    
+    all_moths = []
+    favorited_moths = []
+    
+    for attempt in range(20):
         response = requests.get(f"{INATURALIST_API}/observations", params=params, headers={"User-Agent": "MothMailer/1.0"})
         response.raise_for_status()
         results = response.json()["results"]
+        
         new_moths = [m for m in results if m["id"] not in sent_moths]
         new_moths = [m for m in new_moths if m.get("taxon", {}).get("preferred_common_name")]
-        favorited_moths = [m for m in new_moths if m.get("faves_count", 0) > 0]
+        all_moths.extend(new_moths)
+        
+        favorited_moths = [m for m in all_moths if m.get("faves_count", 0) > 0]
+        print(f"Attempt {attempt+1}: {len(new_moths)} new named moths, {len(favorited_moths)} total with favorites")
+        
         if favorited_moths:
-            new_moths = favorited_moths
-        if not new_moths:
-            raise Exception("Could not find unsent moth after retry")
-    observation = random.choice(new_moths)
+            break
+    
+    if not all_moths:
+        raise Exception("No moth observations found")
+    
+    if favorited_moths:
+        observation = random.choice(favorited_moths)
+    else:
+        observation = random.choice(all_moths)
+    
     photo = observation["photos"][0]
     photo_url = photo["url"]
     for size in ["square", "small", "medium", "thumb"]:
@@ -165,9 +168,8 @@ def send_email(moth, moth_number):
     html_content = build_email_html(moth, moth_number)
     subject = f"Hourly Moth: {moth['common_name']} 🦋"
     recipients = [e.strip() for e in RECIPIENT_EMAIL.split(",") if e.strip()]
-    print(f"Recipients list: {recipients}")
-    print(f"Raw RECIPIENT_EMAIL value: '{RECIPIENT_EMAIL}'")
-    response = requests.post("https://api.resend.com/emails", headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"}, json={"from": SENDER_EMAIL, "to": recipients, "subject": subject, "html": html_content})
+    print(f"Sending to {len(recipients)} recipients")
+    response = requests.post("https://api.resend.com/emails", headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"}, json={"from": SENDER_EMAIL, "to": [SENDER_EMAIL], "bcc": recipients, "subject": subject, "html": html_content})
     if not response.ok:
         raise Exception(f"Failed to send email: {response.status_code} {response.text}")
     return response.json()
@@ -183,7 +185,7 @@ def main():
         print(f"Found: {moth['common_name']} ({moth['scientific_name']})")
         if moth["family"]:
             print(f"Family: {moth['family']}")
-        print(f"Sending to {RECIPIENT_EMAIL}...")
+        print(f"Sending to {len(RECIPIENT_EMAIL.split(','))} recipients...")
         result = send_email(moth, moth_number)
         print(f"Email sent successfully! ID: {result.get('id', 'unknown')}")
         save_sent_moth(moth["id"])
