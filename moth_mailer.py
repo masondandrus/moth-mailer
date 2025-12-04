@@ -55,8 +55,30 @@ def save_sent_moth(moth_id):
 
 
 def get_moth_count():
-    sent_moths = get_sent_moths()
-    return len(sent_moths) + 1
+    return int(os.environ.get("MOTH_NUMBER", 1))
+
+
+def get_family_info(taxon_id):
+    if not taxon_id:
+        return None
+    response = requests.get(
+        f"{INATURALIST_API}/taxa/{taxon_id}",
+        headers={"User-Agent": "MothMailer/1.0"}
+    )
+    if not response.ok:
+        return None
+    taxon_data = response.json().get("results", [])
+    if not taxon_data:
+        return None
+    ancestors = taxon_data[0].get("ancestors", [])
+    for ancestor in ancestors:
+        if ancestor.get("rank") == "family":
+            family_name = ancestor.get("name", "")
+            family_common = ancestor.get("preferred_common_name", "")
+            if family_common:
+                return f"{family_name} — {family_common}"
+            return family_name
+    return None
 
 
 def fetch_random_moth():
@@ -81,8 +103,9 @@ def fetch_random_moth():
     if not results:
         raise Exception("No moth observations found")
     new_moths = [m for m in results if m["id"] not in sent_moths]
+    new_moths = [m for m in new_moths if m.get("taxon", {}).get("preferred_common_name")]
     favorited_moths = [m for m in new_moths if m.get("faves_count", 0) > 0]
-    print(f"Found {len(new_moths)} unsent moths, {len(favorited_moths)} with favorites")
+    print(f"Found {len(new_moths)} unsent named moths, {len(favorited_moths)} with favorites")
     if favorited_moths:
         new_moths = favorited_moths
     if not new_moths:
@@ -95,6 +118,7 @@ def fetch_random_moth():
         response.raise_for_status()
         results = response.json()["results"]
         new_moths = [m for m in results if m["id"] not in sent_moths]
+        new_moths = [m for m in new_moths if m.get("taxon", {}).get("preferred_common_name")]
         favorited_moths = [m for m in new_moths if m.get("faves_count", 0) > 0]
         if favorited_moths:
             new_moths = favorited_moths
@@ -108,23 +132,13 @@ def fetch_random_moth():
             photo_url = photo_url.replace(size, "large")
             break
     taxon = observation.get("taxon", {})
-    common_name = taxon.get("preferred_common_name", "Unknown moth")
+    taxon_id = taxon.get("id", None)
+    common_name = taxon.get("preferred_common_name")
     scientific_name = taxon.get("name", "Species unknown")
     place = observation.get("place_guess", "Location unknown")
     obs_url = f"https://www.inaturalist.org/observations/{observation['id']}"
     observations_count = taxon.get("observations_count", 0)
-    wikipedia_url = taxon.get("wikipedia_url", None)
-    ancestors = taxon.get("ancestors", [])
-    family = None
-    for ancestor in ancestors:
-        if ancestor.get("rank") == "family":
-            family_name = ancestor.get("name", "")
-            family_common = ancestor.get("preferred_common_name", "")
-            if family_common:
-                family = f"{family_name} — {family_common}"
-            else:
-                family = family_name
-            break
+    family = get_family_info(taxon_id)
     return {
         "id": observation["id"],
         "photo_url": photo_url,
@@ -134,62 +148,48 @@ def fetch_random_moth():
         "observation_url": obs_url,
         "attribution": photo.get("attribution", "Unknown photographer"),
         "observations_count": observations_count,
-        "wikipedia_url": wikipedia_url,
         "family": family,
     }
 
 
 def build_email_html(moth, moth_number):
-    rarity_text = ""
+    obs_text = ""
     if moth["observations_count"] > 0:
-        count = moth["observations_count"]
-        if count < 500:
-            rarity_text = f"🌟 Rare — only {count:,} observations worldwide"
-        elif count < 2000:
-            rarity_text = f"📊 {count:,} observations worldwide"
-        else:
-            rarity_text = f"📊 {count:,} observations worldwide"
+        obs_text = f"{moth['observations_count']:,} observations on iNaturalist"
     family_text = ""
     if moth["family"]:
-        family_text = f"<p>🔬 Family: {moth['family']}</p>"
-    search_name = moth["scientific_name"].replace(" ", "+")
-    if moth["wikipedia_url"]:
-        wiki_text = f'<p>📚 <a href="{moth["wikipedia_url"]}">Learn more on Wikipedia</a></p>'
-    else:
-        wiki_text = f'<p>📚 <a href="https://www.google.com/search?q={search_name}+moth">Search for more info</a></p>'
-    etymology_url = f"https://www.google.com/search?q={search_name}+etymology+meaning"
-    etymology_text = f'<p>📖 <a href="{etymology_url}">What does the name mean?</a></p>'
+        family_text = f"<p style='text-align:center;'>Family: {moth['family']}</p>"
     return f"""<!DOCTYPE html>
 <html>
 <head>
 <style>
 body {{ font-family: Georgia, serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #faf9f7; color: #2d2d2d; text-align: center; }}
-.moth-number {{ font-size: 14px; color: #888; margin-bottom: 5px; }}
-.moth-image {{ width: 100%; max-width: 550px; border-radius: 8px; margin: 20px auto; }}
-.species-name {{ font-size: 24px; margin: 10px 0 5px 0; }}
-.scientific-name {{ font-style: italic; color: #666; margin: 0 0 15px 0; }}
-.details {{ font-size: 14px; color: #555; line-height: 1.8; }}
-.rarity {{ font-size: 13px; color: #888; margin-top: 10px; }}
-.footer {{ margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #888; }}
+p {{ text-align: center; }}
+h1, h2 {{ text-align: center; }}
+.moth-number {{ font-size: 14px; color: #888; margin-bottom: 5px; text-align: center; }}
+.moth-image {{ display: block; width: 100%; max-width: 550px; border-radius: 8px; margin: 20px auto; }}
+.species-name {{ font-size: 24px; margin: 10px 0 5px 0; text-align: center; }}
+.scientific-name {{ font-style: italic; color: #666; margin: 0 0 15px 0; text-align: center; }}
+.details {{ font-size: 14px; color: #555; line-height: 1.8; text-align: center; }}
+.obs-count {{ font-size: 13px; color: #888; margin-top: 10px; text-align: center; }}
+.footer {{ margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #888; text-align: center; }}
 a {{ color: #6b705c; }}
 </style>
 </head>
 <body>
 <p class="moth-number">Moth #{moth_number}</p>
-<h1 style="margin: 0; font-weight: normal; padding-bottom: 20px; border-bottom: 1px solid #e0e0e0;">🦋 Your Hourly Moth</h1>
+<h1 style="margin: 0; font-weight: normal; padding-bottom: 20px; border-bottom: 1px solid #e0e0e0;">Hourly Moth 🦋</h1>
 <img src="{moth['photo_url']}" alt="{moth['common_name']}" class="moth-image">
 <h2 class="species-name">{moth['common_name']}</h2>
 <p class="scientific-name">{moth['scientific_name']}</p>
 <div class="details">
 {family_text}
-<p>📍 {moth['place']}</p>
-<p><a href="{moth['observation_url']}">View on iNaturalist →</a></p>
-{wiki_text}
-{etymology_text}
+<p style="text-align:center;">📍 {moth['place']}</p>
+<p style="text-align:center;"><a href="{moth['observation_url']}">View on iNaturalist →</a></p>
 </div>
-<p class="rarity">{rarity_text}</p>
+<p class="obs-count">{obs_text}</p>
 <div class="footer">
-<p>Photo: {moth['attribution']}</p>
+<p style="text-align:center;">Photo: {moth['attribution']}</p>
 </div>
 </body>
 </html>"""
@@ -201,8 +201,8 @@ def send_email(moth, moth_number):
     if not RECIPIENT_EMAIL:
         raise Exception("RECIPIENT_EMAIL environment variable not set")
     html_content = build_email_html(moth, moth_number)
-    subject = f"🦋 Your Hourly Moth: {moth['common_name']}"
-    response = requests.post(
+    subject = f"Your Hourly Moth: {moth['common_name']} 🦋"
+    response = requests.post
         "https://api.resend.com/emails",
         headers={
             "Authorization": f"Bearer {RESEND_API_KEY}",
@@ -228,6 +228,8 @@ def main():
         print("Fetching random moth from iNaturalist...")
         moth = fetch_random_moth()
         print(f"Found: {moth['common_name']} ({moth['scientific_name']})")
+        if moth["family"]:
+            print(f"Family: {moth['family']}")
         print(f"Sending to {RECIPIENT_EMAIL}...")
         result = send_email(moth, moth_number)
         print(f"Email sent successfully! ID: {result.get('id', 'unknown')}")
