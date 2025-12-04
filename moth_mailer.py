@@ -126,7 +126,7 @@ a {{ color: #6b705c; }}
 </style>
 </head>
 <body>
-<h1 style="margin: 0; font-weight: normal; padding-bottom: 20px; border-bottom: 1px solid #e0e0e0;">🦋 Your Hourly Moth</h1>
+<h1 style="margin: 0; font-weight: normal; padding-bottom: 20px; border-bottom: 1px solid #e0e0e0;">🦋</h1>
 <img src="{moth['photo_url']}" alt="{moth['common_name']}" class="moth-image">
 <h2 class="species-name">{moth['common_name']}</h2>
 <p class="scientific-name">{moth['scientific_name']}</p>
