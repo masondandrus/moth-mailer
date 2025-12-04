@@ -88,6 +88,7 @@ def fetch_random_moth():
 
 
 def build_email_html(moth):
+    def build_email_html(moth):
     """Build a nice HTML email with the moth photo and info."""
     return f"""
     <!DOCTYPE html>
@@ -101,9 +102,9 @@ def build_email_html(moth):
                 padding: 20px;
                 background-color: #faf9f7;
                 color: #2d2d2d;
+                text-align: center;
             }}
             .header {{
-                text-align: center;
                 padding-bottom: 20px;
                 border-bottom: 1px solid #e0e0e0;
             }}
@@ -111,7 +112,7 @@ def build_email_html(moth):
                 width: 100%;
                 max-width: 550px;
                 border-radius: 8px;
-                margin: 20px 0;
+                margin: 20px auto;
             }}
             .species-name {{
                 font-size: 24px;
@@ -133,7 +134,6 @@ def build_email_html(moth):
                 border-top: 1px solid #e0e0e0;
                 font-size: 12px;
                 color: #888;
-                text-align: center;
             }}
             a {{
                 color: #6b705c;
@@ -151,9 +151,7 @@ def build_email_html(moth):
         <p class="scientific-name">{moth['scientific_name']}</p>
         
         <div class="details">
-            <p>📍 <strong>Spotted:</strong> {moth['place']}</p>
-            <p>📅 <strong>Date:</strong> {moth['observed_on']}</p>
-            <p>📸 <strong>Photographed by:</strong> {moth['observer']}</p>
+            <p>📍 {moth['place']}</p>
             <p><a href="{moth['observation_url']}">View on iNaturalist →</a></p>
         </div>
         
