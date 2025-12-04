@@ -7,7 +7,7 @@ from datetime import datetime
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
 RECIPIENT_EMAIL = os.environ.get("RECIPIENT_EMAIL")
 SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "moths@yourdomain.com")
-GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+GH_TOKEN = os.environ.get("GH_TOKEN")
 GIST_ID = os.environ.get("GIST_ID")
 
 INATURALIST_API = "https://api.inaturalist.org/v1"
@@ -15,12 +15,12 @@ MOTH_TAXON_ID = 47157
 
 
 def get_sent_moths():
-    if not GITHUB_TOKEN or not GIST_ID:
+    if not GH_TOKEN or not GIST_ID:
         print("No Gist configured, skipping duplicate check")
         return set()
     response = requests.get(
         f"https://api.github.com/gists/{GIST_ID}",
-        headers={"Authorization": f"Bearer {GITHUB_TOKEN}"}
+        headers={"Authorization": f"Bearer {GH_TOKEN}"}
     )
     if not response.ok:
         print(f"Warning: Could not fetch Gist: {response.status_code}")
@@ -32,13 +32,13 @@ def get_sent_moths():
 
 
 def save_sent_moth(moth_id):
-    if not GITHUB_TOKEN or not GIST_ID:
+    if not GH_TOKEN or not GIST_ID:
         return
     sent_moths = get_sent_moths()
     sent_moths.add(moth_id)
     response = requests.patch(
         f"https://api.github.com/gists/{GIST_ID}",
-        headers={"Authorization": f"Bearer {GITHUB_TOKEN}","Content-Type": "application/json"},
+        headers={"Authorization": f"Bearer {GH_TOKEN}","Content-Type": "application/json"},
         json={"files": {"sent_moths.json": {"content": json.dumps(list(sent_moths))}}}
     )
     if not response.ok:
