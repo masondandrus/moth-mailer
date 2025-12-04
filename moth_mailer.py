@@ -46,7 +46,8 @@ def save_sent_moth(moth_id):
 
 
 def get_moth_count():
-    return int(os.environ.get("MOTH_NUMBER", 1))
+    sent_moths = get_sent_moths()
+    return len(sent_moths) + 1
 
 
 def get_family_info(taxon_id):
