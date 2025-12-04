@@ -1,45 +1,96 @@
 """
-Moth Mailer - Sends a beautiful moth photo to your girlfriend every hour.
-Uses iNaturalist API for photos and Resend for email delivery.
+Moth Mailer - Sends a unique moth photo every hour.
+Uses iNaturalist API for photos, Resend for email, and GitHub Gist for tracking sent moths.
 """
 
 import os
 import random
 import requests
+import json
 from datetime import datetime
 
 # Configuration from environment variables
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
 RECIPIENT_EMAIL = os.environ.get("RECIPIENT_EMAIL")
-SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "moths@yourdomain.com")
+SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "moths@mothsforanna.com")
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+GIST_ID = os.environ.get("GIST_ID")
 
 # iNaturalist API settings
 INATURALIST_API = "https://api.inaturalist.org/v1"
-MOTH_TAXON_ID = 47157  # Lepidoptera (includes moths and butterflies)
-# For moths specifically, we can exclude butterflies (Papilionoidea = 47224)
+MOTH_TAXON_ID = 47157
+
+
+def get_sent_moths():
+    """Retrieve list of already-sent moth IDs from GitHub Gist."""
+    if not GITHUB_TOKEN or not GIST_ID:
+        print("No Gist configured, skipping duplicate check")
+        return set()
+    
+    response = requests.get(
+        f"https://api.github.com/gists/{GIST_ID}",
+        headers={"Authorization": f"Bearer {GITHUB_TOKEN}"}
+    )
+    
+    if not response.ok:
+        print(f"Warning: Could not fetch Gist: {response.status_code}")
+        return set()
+    
+    gist_data = response.json()
+    content = gist_data["files"]["sent_moths.json"]["content"]
+    sent_ids = json.loads(content)
+    return set(sent_ids)
+
+
+def save_sent_moth(moth_id):
+    """Add a moth ID to the Gist."""
+    if not GITHUB_TOKEN or not GIST_ID:
+        return
+    
+    sent_moths = get_sent_moths()
+    sent_moths.add(moth_id)
+    
+    response = requests.patch(
+        f"https://api.github.com/gists/{GIST_ID}",
+        headers={
+            "Authorization": f"Bearer {GITHUB_TOKEN}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "files": {
+                "sent_moths.json": {
+                    "content": json.dumps(list(sent_moths))
+                }
+            }
+        }
+    )
+    
+    if not response.ok:
+        print(f"Warning: Could not update Gist: {response.status_code}")
 
 
 def fetch_random_moth():
     """
     Fetch a random high-quality moth observation from iNaturalist.
-    Returns dict with photo URL, species name, observer, and location.
+    Excludes any moths that have already been sent.
     """
-    # Search parameters for quality moth photos
+    sent_moths = get_sent_moths()
+    print(f"Already sent {len(sent_moths)} unique moths")
+    
     params = {
         "taxon_id": MOTH_TAXON_ID,
-        "quality_grade": "research",  # Verified identifications only
+        "quality_grade": "research",
         "photos": "true",
-        "photo_licensed": "true",  # Only CC-licensed photos
+        "photo_licensed": "true",
         "per_page": 200,
         "order_by": "random",
-        # Exclude butterflies to get only moths
         "without_taxon_id": 47224,
     }
     
     response = requests.get(
         f"{INATURALIST_API}/observations",
         params=params,
-        headers={"User-Agent": "MothMailer/1.0 (girlfriend-appreciation-project)"}
+        headers={"User-Agent": "MothMailer/1.0"}
     )
     response.raise_for_status()
     
@@ -48,34 +99,44 @@ def fetch_random_moth():
     if not results:
         raise Exception("No moth observations found")
     
-    # Pick a random observation from results
-    observation = random.choice(results)
+    # Filter out already-sent moths
+    new_moths = [m for m in results if m["id"] not in sent_moths]
     
-    # Get the best photo (first one, usually highest quality)
+    if not new_moths:
+        print("All fetched moths already sent, fetching another batch...")
+        # Try again with a different random batch
+        response = requests.get(
+            f"{INATURALIST_API}/observations",
+            params=params,
+            headers={"User-Agent": "MothMailer/1.0"}
+        )
+        response.raise_for_status()
+        results = response.json()["results"]
+        new_moths = [m for m in results if m["id"] not in sent_moths]
+        
+        if not new_moths:
+            raise Exception("Could not find unsent moth after retry")
+    
+    observation = random.choice(new_moths)
     photo = observation["photos"][0]
     
-    # Build photo URL - iNaturalist uses size suffixes
-    # original, large (1024px), medium (500px), small (240px), square (75px)
-    # The URL format is like: .../photos/12345/square.jpg
-    # We want large for better quality in emails
     photo_url = photo["url"]
     for size in ["square", "small", "medium", "thumb"]:
         if size in photo_url:
             photo_url = photo_url.replace(size, "large")
             break
     
-    # Extract species info
     taxon = observation.get("taxon", {})
     common_name = taxon.get("preferred_common_name", "Unknown moth")
     scientific_name = taxon.get("name", "Species unknown")
     
-    # Location and observer info
     place = observation.get("place_guess", "Location unknown")
     observer = observation.get("user", {}).get("login", "Anonymous")
     obs_date = observation.get("observed_on", "Date unknown")
     obs_url = f"https://www.inaturalist.org/observations/{observation['id']}"
     
     return {
+        "id": observation["id"],
         "photo_url": photo_url,
         "common_name": common_name,
         "scientific_name": scientific_name,
@@ -88,7 +149,6 @@ def fetch_random_moth():
 
 
 def build_email_html(moth):
-    def build_email_html(moth):
     """Build a nice HTML email with the moth photo and info."""
     return f"""
     <!DOCTYPE html>
@@ -157,7 +217,6 @@ def build_email_html(moth):
         
         <div class="footer">
             <p>Photo: {moth['attribution']}</p>
-            <p>Sent with love via the Moth Mailer 🌙</p>
         </div>
     </body>
     </html>
@@ -172,9 +231,7 @@ def send_email(moth):
         raise Exception("RECIPIENT_EMAIL environment variable not set")
     
     html_content = build_email_html(moth)
-    
-    # Subject line with species name
-    subject = f"🦋 {moth['common_name']} — Your Hourly Moth"
+    subject = f"🦋 Your Hourly Moth: {moth['common_name']}"
     
     response = requests.post(
         "https://api.resend.com/emails",
@@ -190,7 +247,7 @@ def send_email(moth):
         },
     )
     
-    if not response.ok:  # Checks for any 2xx status code
+    if not response.ok:
         raise Exception(f"Failed to send email: {response.status_code} {response.text}")
     
     return response.json()
@@ -201,15 +258,17 @@ def main():
     print(f"[{datetime.now().isoformat()}] Starting Moth Mailer...")
     
     try:
-        # Fetch random moth
         print("Fetching random moth from iNaturalist...")
         moth = fetch_random_moth()
         print(f"Found: {moth['common_name']} ({moth['scientific_name']})")
         
-        # Send email
         print(f"Sending to {RECIPIENT_EMAIL}...")
         result = send_email(moth)
         print(f"Email sent successfully! ID: {result.get('id', 'unknown')}")
+        
+        # Save this moth as sent
+        save_sent_moth(moth["id"])
+        print(f"Saved moth {moth['id']} to sent list")
         
     except Exception as e:
         print(f"Error: {e}")
