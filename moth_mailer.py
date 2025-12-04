@@ -12,7 +12,7 @@ from datetime import datetime
 # Configuration from environment variables
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
 RECIPIENT_EMAIL = os.environ.get("RECIPIENT_EMAIL")
-SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "moths@mothsforanna.com")
+SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "moths@yourdomain.com")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 GIST_ID = os.environ.get("GIST_ID")
 
@@ -70,10 +70,7 @@ def save_sent_moth(moth_id):
 
 
 def fetch_random_moth():
-    """
-    Fetch a random high-quality moth observation from iNaturalist.
-    Excludes any moths that have already been sent.
-    """
+    """Fetch a random high-quality moth observation from iNaturalist."""
     sent_moths = get_sent_moths()
     print(f"Already sent {len(sent_moths)} unique moths")
     
@@ -104,7 +101,6 @@ def fetch_random_moth():
     
     if not new_moths:
         print("All fetched moths already sent, fetching another batch...")
-        # Try again with a different random batch
         response = requests.get(
             f"{INATURALIST_API}/observations",
             params=params,
@@ -266,7 +262,6 @@ def main():
         result = send_email(moth)
         print(f"Email sent successfully! ID: {result.get('id', 'unknown')}")
         
-        # Save this moth as sent
         save_sent_moth(moth["id"])
         print(f"Saved moth {moth['id']} to sent list")
         
@@ -277,3 +272,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+```
