@@ -38,17 +38,8 @@ def save_sent_moth(moth_id):
     sent_moths.add(moth_id)
     response = requests.patch(
         f"https://api.github.com/gists/{GIST_ID}",
-        headers={
-            "Authorization": f"Bearer {GITHUB_TOKEN}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "files": {
-                "sent_moths.json": {
-                    "content": json.dumps(list(sent_moths))
-                }
-            }
-        }
+        headers={"Authorization": f"Bearer {GITHUB_TOKEN}","Content-Type": "application/json"},
+        json={"files": {"sent_moths.json": {"content": json.dumps(list(sent_moths))}}}
     )
     if not response.ok:
         print(f"Warning: Could not update Gist: {response.status_code}")
@@ -61,10 +52,7 @@ def get_moth_count():
 def get_family_info(taxon_id):
     if not taxon_id:
         return None
-    response = requests.get(
-        f"{INATURALIST_API}/taxa/{taxon_id}",
-        headers={"User-Agent": "MothMailer/1.0"}
-    )
+    response = requests.get(f"{INATURALIST_API}/taxa/{taxon_id}", headers={"User-Agent": "MothMailer/1.0"})
     if not response.ok:
         return None
     taxon_data = response.json().get("results", [])
@@ -84,20 +72,8 @@ def get_family_info(taxon_id):
 def fetch_random_moth():
     sent_moths = get_sent_moths()
     print(f"Already sent {len(sent_moths)} unique moths")
-    params = {
-        "taxon_id": MOTH_TAXON_ID,
-        "quality_grade": "research",
-        "photos": "true",
-        "photo_licensed": "true",
-        "per_page": 200,
-        "order_by": "random",
-        "without_taxon_id": 47224,
-    }
-    response = requests.get(
-        f"{INATURALIST_API}/observations",
-        params=params,
-        headers={"User-Agent": "MothMailer/1.0"}
-    )
+    params = {"taxon_id": MOTH_TAXON_ID, "quality_grade": "research", "photos": "true", "photo_licensed": "true", "per_page": 200, "order_by": "random", "without_taxon_id": 47224}
+    response = requests.get(f"{INATURALIST_API}/observations", params=params, headers={"User-Agent": "MothMailer/1.0"})
     response.raise_for_status()
     results = response.json()["results"]
     if not results:
@@ -109,12 +85,8 @@ def fetch_random_moth():
     if favorited_moths:
         new_moths = favorited_moths
     if not new_moths:
-        print("All fetched moths already sent, fetching another batch...")
-        response = requests.get(
-            f"{INATURALIST_API}/observations",
-            params=params,
-            headers={"User-Agent": "MothMailer/1.0"}
-        )
+        print("Retrying...")
+        response = requests.get(f"{INATURALIST_API}/observations", params=params, headers={"User-Agent": "MothMailer/1.0"})
         response.raise_for_status()
         results = response.json()["results"]
         new_moths = [m for m in results if m["id"] not in sent_moths]
@@ -139,17 +111,7 @@ def fetch_random_moth():
     obs_url = f"https://www.inaturalist.org/observations/{observation['id']}"
     observations_count = taxon.get("observations_count", 0)
     family = get_family_info(taxon_id)
-    return {
-        "id": observation["id"],
-        "photo_url": photo_url,
-        "common_name": common_name,
-        "scientific_name": scientific_name,
-        "place": place,
-        "observation_url": obs_url,
-        "attribution": photo.get("attribution", "Unknown photographer"),
-        "observations_count": observations_count,
-        "family": family,
-    }
+    return {"id": observation["id"], "photo_url": photo_url, "common_name": common_name, "scientific_name": scientific_name, "place": place, "observation_url": obs_url, "attribution": photo.get("attribution", "Unknown photographer"), "observations_count": observations_count, "family": family}
 
 
 def build_email_html(moth, moth_number):
@@ -201,20 +163,8 @@ def send_email(moth, moth_number):
     if not RECIPIENT_EMAIL:
         raise Exception("RECIPIENT_EMAIL environment variable not set")
     html_content = build_email_html(moth, moth_number)
-    subject = f"Your Hourly Moth: {moth['common_name']} 🦋"
-    response = requests.post
-        "https://api.resend.com/emails",
-        headers={
-            "Authorization": f"Bearer {RESEND_API_KEY}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "from": SENDER_EMAIL,
-            "to": [RECIPIENT_EMAIL],
-            "subject": subject,
-            "html": html_content,
-        },
-    )
+    subject = f"Hourly Moth: {moth['common_name']} 🦋"
+    response = requests.post("https://api.resend.com/emails", headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"}, json={"from": SENDER_EMAIL, "to": [RECIPIENT_EMAIL], "subject": subject, "html": html_content})
     if not response.ok:
         raise Exception(f"Failed to send email: {response.status_code} {response.text}")
     return response.json()
