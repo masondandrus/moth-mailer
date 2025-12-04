@@ -2,10 +2,7 @@ name: Hourly Moth Mailer
 
 on:
   schedule:
-    # Run every hour at minute 0
     - cron: '0 * * * *'
-  
-  # Allow manual trigger for testing
   workflow_dispatch:
 
 jobs:
@@ -31,4 +28,7 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
           SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GIST_ID: ${{ secrets.GIST_ID }}
+          MOTH_NUMBER: ${{ github.run_number }}
         run: python moth_mailer.py
