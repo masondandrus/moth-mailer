@@ -164,7 +164,10 @@ def send_email(moth, moth_number):
         raise Exception("RECIPIENT_EMAIL environment variable not set")
     html_content = build_email_html(moth, moth_number)
     subject = f"Hourly Moth: {moth['common_name']} 🦋"
-    response = requests.post("https://api.resend.com/emails", headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"}, json={"from": SENDER_EMAIL, "to": [RECIPIENT_EMAIL], "subject": subject, "html": html_content})
+    recipients = [e.strip() for e in RECIPIENT_EMAIL.split(",") if e.strip()]
+    print(f"Recipients list: {recipients}")
+    print(f"Raw RECIPIENT_EMAIL value: '{RECIPIENT_EMAIL}'")
+    response = requests.post("https://api.resend.com/emails", headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"}, json={"from": SENDER_EMAIL, "to": recipients, "subject": subject, "html": html_content})
     if not response.ok:
         raise Exception(f"Failed to send email: {response.status_code} {response.text}")
     return response.json()
