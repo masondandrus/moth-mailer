@@ -21,7 +21,7 @@
         .scientific-name { font-style: italic; color: #666; margin-bottom: 10px; }
         .family { font-size: 0.9em; color: #555; margin-bottom: 5px; }
         .location { font-size: 0.9em; color: #888; margin-bottom: 5px; }
-        .timestamp { font-size: 0.8em; color: #aaa; }
+        .timestamp { font-size: 0.7em; color: #aaa; }
         .loading { text-align: center; padding: 60px; color: #888; }
         a { color: inherit; text-decoration: none; }
     </style>
@@ -29,7 +29,7 @@
 <body>
     <header>
         <h1>🦋 Moths for Anna</h1>
-        <p class="subtitle">A new moth every hour</p>
+        <p class="subtitle">A new moth (or caterpillar) every hour</p>
     </header>
     <div id="moths" class="grid">
         <div class="loading">Loading moths...</div>
@@ -68,11 +68,11 @@
                         </a>
                         <div class="moth-info">
                             <div class="moth-number">Moth #${moth.moth_number || ''}</div>
+                            <div class="timestamp">${formatDate(moth.sent_at)}</div>
                             <div class="moth-name">${moth.common_name}</div>
                             <div class="scientific-name">${moth.scientific_name}</div>
                             ${moth.family ? `<div class="family">Family: ${moth.family}</div>` : ''}
                             <div class="location">📍 ${moth.place}</div>
-                            <div class="timestamp">${formatDate(moth.sent_at)}</div>
                         </div>
                     </div>
                 `).join('');
