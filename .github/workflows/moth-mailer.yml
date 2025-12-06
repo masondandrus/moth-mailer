@@ -2,7 +2,7 @@ name: Hourly Moth Mailer
 
 on:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '57 * * * *'
   workflow_dispatch:
 
 jobs:
