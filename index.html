@@ -20,7 +20,8 @@
         .moth-name { font-size: 1.3em; margin-bottom: 5px; }
         .scientific-name { font-style: italic; color: #666; margin-bottom: 10px; }
         .family { font-size: 0.9em; color: #555; margin-bottom: 5px; }
-        .location { font-size: 0.9em; color: #888; }
+        .location { font-size: 0.9em; color: #888; margin-bottom: 5px; }
+        .timestamp { font-size: 0.8em; color: #aaa; }
         .loading { text-align: center; padding: 60px; color: #888; }
         a { color: inherit; text-decoration: none; }
     </style>
@@ -35,6 +36,20 @@
     </div>
     <script>
         const GIST_ID = '13f60f151dac089590b88b9a55c4140e';
+        
+        function formatDate(isoString) {
+            if (!isoString) return '';
+            const date = new Date(isoString);
+            return date.toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            });
+        }
+        
         async function loadMoths() {
             try {
                 const response = await fetch(`https://api.github.com/gists/${GIST_ID}`);
@@ -57,6 +72,7 @@
                             <div class="scientific-name">${moth.scientific_name}</div>
                             ${moth.family ? `<div class="family">Family: ${moth.family}</div>` : ''}
                             <div class="location">📍 ${moth.place}</div>
+                            <div class="timestamp">${formatDate(moth.sent_at)}</div>
                         </div>
                     </div>
                 `).join('');
