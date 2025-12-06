@@ -2,7 +2,8 @@ import os
 import random
 import requests
 import json
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
 RECIPIENT_EMAIL = os.environ.get("RECIPIENT_EMAIL")
@@ -12,6 +13,11 @@ GIST_ID = os.environ.get("GIST_ID")
 
 INATURALIST_API = "https://api.inaturalist.org/v1"
 MOTH_TAXON_ID = 47157
+
+
+def get_pacific_hour():
+    pacific_now = datetime.now(ZoneInfo("America/Los_Angeles"))
+    return pacific_now.hour
 
 
 def get_sent_moths():
@@ -195,11 +201,19 @@ def main():
         print(f"Found: {moth['common_name']} ({moth['scientific_name']})")
         if moth["family"]:
             print(f"Family: {moth['family']}")
-        print(f"Sending to {len(RECIPIENT_EMAIL.split(','))} recipients...")
-        result = send_email(moth, moth_number)
-        print(f"Email sent successfully! ID: {result.get('id', 'unknown')}")
+        
+        pacific_hour = get_pacific_hour()
+        print(f"Current Pacific hour: {pacific_hour}")
+        
+        if 9 <= pacific_hour < 17:
+            print(f"Sending to {len(RECIPIENT_EMAIL.split(','))} recipients...")
+            result = send_email(moth, moth_number)
+            print(f"Email sent successfully! ID: {result.get('id', 'unknown')}")
+        else:
+            print("Outside email hours (9am-5pm Pacific), skipping email")
+        
         moth["moth_number"] = moth_number
-        moth["sent_at"] = datetime.now().isoformat()
+        moth["sent_at"] = datetime.now(timezone.utc).isoformat()
         save_sent_moth(moth)
         print(f"Saved moth {moth['id']} to sent list")
     except Exception as e:
@@ -209,4 +223,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
