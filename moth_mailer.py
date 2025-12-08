@@ -3,21 +3,12 @@ import random
 import requests
 import json
 from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
 
-RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
-RECIPIENT_EMAIL = os.environ.get("RECIPIENT_EMAIL")
-SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "moths@yourdomain.com")
 GH_TOKEN = os.environ.get("GH_TOKEN")
 GIST_ID = os.environ.get("GIST_ID")
 
 INATURALIST_API = "https://api.inaturalist.org/v1"
 MOTH_TAXON_ID = 47157
-
-
-def get_pacific_hour():
-    pacific_now = datetime.now(ZoneInfo("America/Los_Angeles"))
-    return pacific_now.hour
 
 
 def get_sent_moths():
@@ -133,66 +124,8 @@ def fetch_random_moth():
     return {"id": observation["id"], "photo_url": photo_url, "common_name": common_name, "scientific_name": scientific_name, "place": place, "observation_url": obs_url, "attribution": photo.get("attribution", "Unknown photographer"), "observations_count": observations_count, "family": family}
 
 
-def build_email_html(moth, moth_number):
-    obs_text = ""
-    if moth["observations_count"] > 0:
-        obs_text = f"{moth['observations_count']:,} observations on iNaturalist"
-    family_text = ""
-    if moth["family"]:
-        family_text = f"<p style='text-align:center;'>Family: {moth['family']}</p>"
-    return f"""<!DOCTYPE html>
-<html>
-<head>
-<style>
-body {{ font-family: Georgia, serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #faf9f7; color: #2d2d2d; text-align: center; }}
-p {{ text-align: center; }}
-h1, h2 {{ text-align: center; }}
-.moth-number {{ font-size: 14px; color: #888; margin-bottom: 5px; text-align: center; }}
-.moth-image {{ display: block; width: 100%; max-width: 550px; border-radius: 8px; margin: 20px auto; }}
-.species-name {{ font-size: 24px; margin: 10px 0 5px 0; text-align: center; }}
-.scientific-name {{ font-style: italic; color: #666; margin: 0 0 15px 0; text-align: center; }}
-.details {{ font-size: 14px; color: #555; line-height: 1.8; text-align: center; }}
-.obs-count {{ font-size: 13px; color: #888; margin-top: 10px; text-align: center; }}
-.footer {{ margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #888; text-align: center; }}
-a {{ color: #6b705c; }}
-</style>
-</head>
-<body>
-<p class="moth-number">Moth #{moth_number}</p>
-<h1 style="margin: 0; font-weight: normal; padding-bottom: 20px; border-bottom: 1px solid #e0e0e0;">Hourly Moth 🦋</h1>
-<img src="{moth['photo_url']}" alt="{moth['common_name']}" class="moth-image">
-<h2 class="species-name">{moth['common_name']}</h2>
-<p class="scientific-name">{moth['scientific_name']}</p>
-<div class="details">
-{family_text}
-<p style="text-align:center;">📍 {moth['place']}</p>
-<p style="text-align:center;"><a href="{moth['observation_url']}">View on iNaturalist →</a></p>
-</div>
-<p class="obs-count">{obs_text}</p>
-<div class="footer">
-<p style="text-align:center;">Photo: {moth['attribution']}</p>
-</div>
-</body>
-</html>"""
-
-
-def send_email(moth, moth_number):
-    if not RESEND_API_KEY:
-        raise Exception("RESEND_API_KEY environment variable not set")
-    if not RECIPIENT_EMAIL:
-        raise Exception("RECIPIENT_EMAIL environment variable not set")
-    html_content = build_email_html(moth, moth_number)
-    subject = f"Hourly Moth: {moth['common_name']} 🦋"
-    recipients = [e.strip() for e in RECIPIENT_EMAIL.split(",") if e.strip()]
-    print(f"Sending to {len(recipients)} recipients")
-    response = requests.post("https://api.resend.com/emails", headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"}, json={"from": SENDER_EMAIL, "to": [SENDER_EMAIL], "bcc": recipients, "subject": subject, "html": html_content})
-    if not response.ok:
-        raise Exception(f"Failed to send email: {response.status_code} {response.text}")
-    return response.json()
-
-
 def main():
-    print(f"[{datetime.now().isoformat()}] Starting Moth Mailer...")
+    print(f"[{datetime.now().isoformat()}] Starting Moth Fetcher...")
     try:
         moth_number = get_moth_count()
         print(f"This will be moth #{moth_number}")
@@ -202,20 +135,10 @@ def main():
         if moth["family"]:
             print(f"Family: {moth['family']}")
         
-        pacific_hour = get_pacific_hour()
-        print(f"Current Pacific hour: {pacific_hour}")
-        
-        if 9 <= pacific_hour < 17:
-            print(f"Sending to {len(RECIPIENT_EMAIL.split(','))} recipients...")
-            result = send_email(moth, moth_number)
-            print(f"Email sent successfully! ID: {result.get('id', 'unknown')}")
-        else:
-            print("Outside email hours (9am-5pm Pacific), skipping email")
-        
         moth["moth_number"] = moth_number
         moth["sent_at"] = datetime.now(timezone.utc).isoformat()
         save_sent_moth(moth)
-        print(f"Saved moth {moth['id']} to sent list")
+        print(f"Saved moth {moth['id']} to website")
     except Exception as e:
         print(f"Error: {e}")
         raise
