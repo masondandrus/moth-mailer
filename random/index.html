@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Random Moth</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Georgia, serif; background-color: #faf9f7; color: #2d2d2d; padding: 40px 20px; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+        header { text-align: center; margin-bottom: 30px; }
+        h1 { font-weight: normal; font-size: 2em; margin-bottom: 10px; }
+        .subtitle { color: #888; font-size: 1em; margin-bottom: 20px; }
+        .back-link { color: #6b705c; margin-bottom: 20px; }
+        .moth-container { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); max-width: 500px; width: 100%; }
+        .moth-container img { width: 100%; height: 350px; object-fit: cover; cursor: pointer; }
+        .moth-info { padding: 20px; text-align: center; }
+        .moth-name { font-size: 1.4em; margin-bottom: 5px; }
+        .scientific-name { font-style: italic; color: #666; margin-bottom: 10px; }
+        .family { font-size: 0.9em; color: #555; margin-bottom: 5px; }
+        .location { font-size: 0.9em; color: #888; margin-bottom: 15px; }
+        .button { background: #6b705c; color: white; border: none; padding: 12px 30px; font-size: 1em; font-family: Georgia, serif; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
+        .button:hover { background: #5a5f4e; }
+        .button:disabled { background: #aaa; cursor: wait; }
+        .loading { text-align: center; padding: 60px; color: #888; }
+        .attribution { font-size: 0.8em; color: #aaa; margin-top: 15px; }
+        a { color: #6b705c; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🎲 Random Moth</h1>
+        <p class="subtitle">Discover a new moth with each click</p>
+        <a href="/" class="back-link">← Back to main collection</a>
+    </header>
+    <div id="moth" class="moth-container">
+        <div class="loading">Click the button to find a moth!</div>
+    </div>
+    <br>
+    <button id="randomize" class="button" onclick="fetchRandomMoth()">🦋 Find a Moth</button>
+    <script>
+        async function fetchRandomMoth() {
+            const button = document.getElementById('randomize');
+            const container = document.getElementById('moth');
+            button.disabled = true;
+            button.textContent = 'Searching...';
+            container.innerHTML = '<div class="loading">Finding a beautiful moth...</div>';
+            
+            try {
+                const params = new URLSearchParams({
+                    taxon_id: 47157,
+                    quality_grade: 'research',
+                    photos: 'true',
+                    photo_licensed: 'true',
+                    per_page: 50,
+                    order_by: 'random',
+                    without_taxon_id: 47224
+                });
+                const response = await fetch(`https://api.inaturalist.org/v1/observations?${params}`);
+                const data = await response.json();
+                const withNames = data.results.filter(m => m.taxon?.preferred_common_name);
+                if (!withNames.length) {
+                    container.innerHTML = '<div class="loading">No moths found, try again!</div>';
+                    return;
+                }
+                const moth = withNames[Math.floor(Math.random() * withNames.length)];
+                const photo = moth.photos[0];
+                let photoUrl = photo.url.replace('square', 'large').replace('small', 'large').replace('medium', 'large').replace('thumb', 'large');
+                const taxon = moth.taxon || {};
+                const commonName = taxon.preferred_common_name || 'Unknown moth';
+                const scientificName = taxon.name || 'Species unknown';
+                const place = moth.place_guess || 'Location unknown';
+                const obsUrl = `https://www.inaturalist.org/observations/${moth.id}`;
+                const attribution = photo.attribution || 'Unknown photographer';
+                
+                container.innerHTML = `
+                    <a href="${obsUrl}" target="_blank">
+                        <img src="${photoUrl}" alt="${commonName}">
+                    </a>
+                    <div class="moth-info">
+                        <div class="moth-name">${commonName}</div>
+                        <div class="scientific-name">${scientificName}</div>
+                        <div class="location">📍 ${place}</div>
+                        <div class="attribution">Photo: ${attribution}</div>
+                    </div>
+                `;
+            } catch (err) {
+                container.innerHTML = '<div class="loading">Error fetching moth. Try again!</div>';
+            } finally {
+                button.disabled = false;
+                button.textContent = '🦋 Find Another Moth';
+            }
+        }
+    </script>
+</body>
+</html>
