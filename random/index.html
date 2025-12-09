@@ -29,21 +29,21 @@
 <body>
     <header>
         <h1>🎲 Random Moth</h1>
-        <p class="subtitle">Discover a new moth with each click</p>
-        <a href="/" class="back-link">← Back to main collection</a>
+        <p class="subtitle">Discover a new moth with each button press.</p>
+        <a href="/" class="back-link">← Back to main collection.</a>
     </header>
     <div id="moth" class="moth-container">
-        <div class="loading">Click the button to find a moth!</div>
+        <div class="loading">Hit the button to find a moth!</div>
     </div>
     <br>
-    <button id="randomize" class="button" onclick="fetchRandomMoth()">🦋 Find a Moth</button>
+    <button id="randomize" class="button" onclick="fetchRandomMoth()">🦋 Find a Moth 🦋</button>
     <script>
         async function fetchRandomMoth() {
             const button = document.getElementById('randomize');
             const container = document.getElementById('moth');
             button.disabled = true;
             button.textContent = 'Searching...';
-            container.innerHTML = '<div class="loading">Finding a beautiful moth...</div>';
+            container.innerHTML = '<div class="loading">Finding a moth...</div>';
             
             try {
                 const params = new URLSearchParams({
@@ -87,7 +87,7 @@
                 container.innerHTML = '<div class="loading">Error fetching moth. Try again!</div>';
             } finally {
                 button.disabled = false;
-                button.textContent = '🦋 Find Another Moth';
+                button.textContent = '🦋 Find Another Moth 🦋';
             }
         }
     </script>
