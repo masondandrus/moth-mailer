@@ -3,117 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Random Moth</title>
+    <title>Moths for Anna</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: Georgia, serif; background-color: #faf9f7; color: #2d2d2d; padding: 40px 20px; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
-        header { text-align: center; margin-bottom: 30px; }
+        body { font-family: Georgia, serif; background-color: #faf9f7; color: #2d2d2d; padding: 40px 20px; }
+        header { text-align: center; margin-bottom: 40px; }
         h1 { font-weight: normal; font-size: 2em; margin-bottom: 10px; }
-        .subtitle { color: #888; font-size: 1em; margin-bottom: 20px; }
-        .back-link { color: #6b705c; margin-bottom: 20px; }
-        .moth-container { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); max-width: 500px; width: 100%; }
-        .moth-container img { width: 100%; height: 350px; object-fit: cover; cursor: pointer; }
+        .subtitle { color: #888; font-size: 1.1em; margin-bottom: 15px; }
+        .random-link { display: inline-block; color: #6b705c; font-size: 0.95em; padding: 8px 16px; border: 1px solid #6b705c; border-radius: 6px; text-decoration: none; transition: all 0.2s; }
+        .random-link:hover { background: #6b705c; color: white; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 30px; max-width: 1400px; margin: 0 auto; }
+        .moth-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: transform 0.2s; }
+        .moth-card:hover { transform: translateY(-4px); }
+        .moth-card a { display: block; }
+        .moth-card img { width: 100%; height: 250px; object-fit: cover; cursor: pointer; }
         .moth-info { padding: 20px; text-align: center; }
-        .moth-name { font-size: 1.4em; margin-bottom: 5px; }
+        .moth-number { font-size: 12px; color: #888; margin-bottom: 3px; }
+        .moth-name { font-size: 1.3em; margin-bottom: 5px; }
         .moth-name a { color: #2d2d2d; text-decoration: none; }
         .moth-name a:hover { color: #6b705c; }
         .scientific-name { font-style: italic; color: #666; margin-bottom: 10px; }
         .family { font-size: 0.9em; color: #555; margin-bottom: 5px; }
-        .location { font-size: 0.9em; color: #888; }
-        .button { background: #6b705c; color: white; border: none; padding: 12px 30px; font-size: 1em; font-family: Georgia, serif; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
-        .button:hover { background: #5a5f4e; }
-        .button:disabled { background: #aaa; cursor: wait; }
+        .location { font-size: 0.9em; color: #888; margin-bottom: 5px; }
+        .timestamp { font-size: 0.8em; color: #aaa; margin-bottom: 6px}
         .loading { text-align: center; padding: 60px; color: #888; }
-        a { color: #6b705c; }
+        a { color: inherit; text-decoration: none; }
     </style>
 </head>
 <body>
     <header>
-        <h1>🎲 Random Moth</h1>
-        <p class="subtitle">Discover a new moth with each button press.</p>
-        <a href="/" class="back-link">← Back to main collection.</a>
+        <h1>🦋 Moths for Anna 🦋</h1>
+        <p class="subtitle">A new moth (or caterpillar) every hour.</p>
+        <a href="/random" class="random-link">🎲 Random Moth</a>
     </header>
-    <div id="moth" class="moth-container">
-        <div class="loading">Hit the button to find a moth!</div>
+    <div id="moths" class="grid">
+        <div class="loading">Loading moths...</div>
     </div>
-    <br>
-    <button id="randomize" class="button" onclick="fetchRandomMoth()">🦋 Find a Moth 🦋</button>
     <script>
-        async function getFamilyInfo(taxonId) {
-            if (!taxonId) return null;
-            try {
-                const response = await fetch(`https://api.inaturalist.org/v1/taxa/${taxonId}`);
-                const data = await response.json();
-                const taxon = data.results?.[0];
-                if (!taxon?.ancestors) return null;
-                for (const ancestor of taxon.ancestors) {
-                    if (ancestor.rank === 'family') {
-                        const familyName = ancestor.name || '';
-                        const familyCommon = ancestor.preferred_common_name || '';
-                        if (familyCommon) return `${familyName} — ${familyCommon}`;
-                        return familyName;
-                    }
-                }
-            } catch (err) {
-                return null;
-            }
-            return null;
+        const GIST_ID = '13f60f151dac089590b88b9a55c4140e';
+        
+        function formatDate(isoString) {
+            if (!isoString) return '';
+            const date = new Date(isoString);
+            return date.toLocaleDateString('en-US', { 
+                timeZone: 'America/Los_Angeles',
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            });
         }
-
-        async function fetchRandomMoth() {
-            const button = document.getElementById('randomize');
-            const container = document.getElementById('moth');
-            button.disabled = true;
-            button.textContent = 'Searching...';
-            container.innerHTML = '<div class="loading">Finding a moth...</div>';
-            
+        
+        async function loadMoths() {
             try {
-                const params = new URLSearchParams({
-                    taxon_id: 47157,
-                    quality_grade: 'research',
-                    photos: 'true',
-                    photo_licensed: 'true',
-                    per_page: 50,
-                    order_by: 'random',
-                    without_taxon_id: 47224
-                });
-                const response = await fetch(`https://api.inaturalist.org/v1/observations?${params}`);
-                const data = await response.json();
-                const withNames = data.results.filter(m => m.taxon?.preferred_common_name);
-                if (!withNames.length) {
-                    container.innerHTML = '<div class="loading">No moths found, try again!</div>';
+                const response = await fetch(`https://api.github.com/gists/${GIST_ID}`);
+                const gist = await response.json();
+                const moths = JSON.parse(gist.files['sent_moths.json'].content);
+                const container = document.getElementById('moths');
+                if (!moths.length) {
+                    container.innerHTML = '<div class="loading">No moths yet. Check back soon!</div>';
                     return;
                 }
-                const moth = withNames[Math.floor(Math.random() * withNames.length)];
-                const photo = moth.photos[0];
-                let photoUrl = photo.url.replace('square', 'large').replace('small', 'large').replace('medium', 'large').replace('thumb', 'large');
-                const taxon = moth.taxon || {};
-                const taxonId = taxon.id;
-                const commonName = taxon.preferred_common_name || 'Unknown moth';
-                const scientificName = taxon.name || 'Species unknown';
-                const place = moth.place_guess || 'Location unknown';
-                const obsUrl = `https://www.inaturalist.org/observations/${moth.id}`;
-                
-                const family = await getFamilyInfo(taxonId);
-                
-                container.innerHTML = `
-                    <a href="${obsUrl}" target="_blank">
-                        <img src="${photoUrl}" alt="${commonName}">
-                    </a>
-                    <div class="moth-info">
-                        <div class="moth-name"><a href="${obsUrl}" target="_blank">${commonName}</a></div>
-                        <div class="scientific-name">${scientificName}</div>
-                        ${family ? `<div class="family">Family: ${family}</div>` : ''}
-                        <div class="location">📍 ${place}</div>
+                const sorted = moths.reverse();
+                container.innerHTML = sorted.map(moth => `
+                    <div class="moth-card">
+                        <a href="${moth.observation_url}" target="_blank">
+                            <img src="${moth.photo_url}" alt="${moth.common_name}">
+                        </a>
+                        <div class="moth-info">
+                            <div class="moth-number">Moth #${moth.moth_number || ''}</div>
+                            <div class="timestamp">${formatDate(moth.sent_at)}</div>
+                            <div class="moth-name"><a href="${moth.observation_url}" target="_blank">${moth.common_name}</a></div>
+                            <div class="scientific-name">${moth.scientific_name}</div>
+                            ${moth.family ? `<div class="family">Family: ${moth.family}</div>` : ''}
+                            <div class="location">📍 ${moth.place}</div>
+                        </div>
                     </div>
-                `;
+                `).join('');
             } catch (err) {
-                container.innerHTML = '<div class="loading">Error fetching moth. Try again!</div>';
-            } finally {
-                button.disabled = false;
-                button.textContent = '🦋 Find Another Moth 🦋';
+                document.getElementById('moths').innerHTML = '<div class="loading">Error loading moths</div>';
             }
         }
+        loadMoths();
     </script>
 </body>
 </html>
