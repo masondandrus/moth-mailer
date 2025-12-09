@@ -15,14 +15,15 @@
         .moth-container img { width: 100%; height: 350px; object-fit: cover; cursor: pointer; }
         .moth-info { padding: 20px; text-align: center; }
         .moth-name { font-size: 1.4em; margin-bottom: 5px; }
+        .moth-name a { color: #2d2d2d; text-decoration: none; }
+        .moth-name a:hover { color: #6b705c; }
         .scientific-name { font-style: italic; color: #666; margin-bottom: 10px; }
         .family { font-size: 0.9em; color: #555; margin-bottom: 5px; }
-        .location { font-size: 0.9em; color: #888; margin-bottom: 15px; }
+        .location { font-size: 0.9em; color: #888; }
         .button { background: #6b705c; color: white; border: none; padding: 12px 30px; font-size: 1em; font-family: Georgia, serif; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
         .button:hover { background: #5a5f4e; }
         .button:disabled { background: #aaa; cursor: wait; }
         .loading { text-align: center; padding: 60px; color: #888; }
-        .attribution { font-size: 0.8em; color: #aaa; margin-top: 15px; }
         a { color: #6b705c; }
     </style>
 </head>
@@ -70,17 +71,15 @@
                 const scientificName = taxon.name || 'Species unknown';
                 const place = moth.place_guess || 'Location unknown';
                 const obsUrl = `https://www.inaturalist.org/observations/${moth.id}`;
-                const attribution = photo.attribution || 'Unknown photographer';
                 
                 container.innerHTML = `
                     <a href="${obsUrl}" target="_blank">
                         <img src="${photoUrl}" alt="${commonName}">
                     </a>
                     <div class="moth-info">
-                        <div class="moth-name">${commonName}</div>
+                        <div class="moth-name"><a href="${obsUrl}" target="_blank">${commonName}</a></div>
                         <div class="scientific-name">${scientificName}</div>
                         <div class="location">📍 ${place}</div>
-                        <div class="attribution">Photo: ${attribution}</div>
                     </div>
                 `;
             } catch (err) {
