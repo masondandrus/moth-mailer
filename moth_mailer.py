@@ -2,6 +2,8 @@ import os
 import random
 import requests
 import json
+import csv
+import io
 from datetime import datetime, timezone
 
 GH_TOKEN = os.environ.get("GH_TOKEN")
@@ -31,8 +33,23 @@ def get_sent_moths():
 def get_sent_moth_ids():
     sent_moths = get_sent_moths()
     if sent_moths and isinstance(sent_moths[0], dict):
-        return set(m["id"] for m in sent_moths)
-    return set(sent_moths)
+        obs_ids = set(m["id"] for m in sent_moths)
+        sent_species = set()
+        for m in sent_moths:
+            if "scientific_name" in m:
+                sent_species.add(m["scientific_name"])
+        return obs_ids, sent_species
+    return set(sent_moths), set()
+
+
+def moths_to_csv(moths):
+    output = io.StringIO()
+    fieldnames = ["moth_number", "sent_at", "common_name", "scientific_name", "family", "place", "observations_count", "observation_url", "photo_url", "attribution", "id"]
+    writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction='ignore')
+    writer.writeheader()
+    for moth in moths:
+        writer.writerow(moth)
+    return output.getvalue()
 
 
 def save_sent_moth(moth):
@@ -42,10 +59,14 @@ def save_sent_moth(moth):
     if sent_moths and not isinstance(sent_moths[0], dict):
         sent_moths = []
     sent_moths.append(moth)
+    csv_content = moths_to_csv(sent_moths)
     response = requests.patch(
         f"https://api.github.com/gists/{GIST_ID}",
         headers={"Authorization": f"Bearer {GH_TOKEN}","Content-Type": "application/json"},
-        json={"files": {"sent_moths.json": {"content": json.dumps(sent_moths, indent=2)}}}
+        json={"files": {
+            "sent_moths.json": {"content": json.dumps(sent_moths, indent=2)},
+            "moths.csv": {"content": csv_content}
+        }}
     )
     if not response.ok:
         print(f"Warning: Could not update Gist: {response.status_code}")
@@ -77,8 +98,8 @@ def get_family_info(taxon_id):
 
 
 def fetch_random_moth():
-    sent_ids = get_sent_moth_ids()
-    print(f"Already sent {len(sent_ids)} unique moths")
+    sent_ids, sent_species = get_sent_moth_ids()
+    print(f"Already sent {len(sent_ids)} observations, {len(sent_species)} unique species")
     params = {"taxon_id": MOTH_TAXON_ID, "quality_grade": "research", "photos": "true", "photo_licensed": "true", "per_page": 200, "order_by": "random", "without_taxon_id": 47224}
     
     all_moths = []
@@ -91,6 +112,7 @@ def fetch_random_moth():
         
         new_moths = [m for m in results if m["id"] not in sent_ids]
         new_moths = [m for m in new_moths if m.get("taxon", {}).get("preferred_common_name")]
+        new_moths = [m for m in new_moths if m.get("taxon", {}).get("name") not in sent_species]
         all_moths.extend(new_moths)
         
         favorited_moths = [m for m in all_moths if m.get("faves_count", 0) > 0]
@@ -138,7 +160,7 @@ def main():
         moth["moth_number"] = moth_number
         moth["sent_at"] = datetime.now(timezone.utc).isoformat()
         save_sent_moth(moth)
-        print(f"Saved moth {moth['id']} to website")
+        print(f"Saved moth {moth['id']} to website and CSV")
     except Exception as e:
         print(f"Error: {e}")
         raise
