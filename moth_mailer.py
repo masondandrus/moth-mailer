@@ -1,92 +1,148 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Moths for Anna</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: Georgia, serif; background-color: #faf9f7; color: #2d2d2d; padding: 40px 20px; }
-        header { text-align: center; margin-bottom: 40px; }
-        h1 { font-weight: normal; font-size: 2em; margin-bottom: 10px; }
-        .subtitle { color: #888; font-size: 1.1em; margin-bottom: 15px; }
-        .random-link { display: inline-block; color: #6b705c; font-size: 0.95em; padding: 8px 16px; border: 1px solid #6b705c; border-radius: 6px; text-decoration: none; transition: all 0.2s; }
-        .random-link:hover { background: #6b705c; color: white; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 30px; max-width: 1400px; margin: 0 auto; }
-        .moth-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: transform 0.2s; }
-        .moth-card:hover { transform: translateY(-4px); }
-        .moth-card a { display: block; }
-        .moth-card img { width: 100%; height: 250px; object-fit: cover; cursor: pointer; }
-        .moth-info { padding: 20px; text-align: center; }
-        .moth-number { font-size: 12px; color: #888; margin-bottom: 3px; }
-        .moth-name { font-size: 1.3em; margin-bottom: 5px; }
-        .moth-name a { color: #2d2d2d; text-decoration: none; }
-        .moth-name a:hover { color: #6b705c; }
-        .scientific-name { font-style: italic; color: #666; margin-bottom: 10px; }
-        .family { font-size: 0.9em; color: #555; margin-bottom: 5px; }
-        .location { font-size: 0.9em; color: #888; margin-bottom: 5px; }
-        .timestamp { font-size: 0.8em; color: #aaa; margin-bottom: 6px}
-        .loading { text-align: center; padding: 60px; color: #888; }
-        a { color: inherit; text-decoration: none; }
-    </style>
-</head>
-<body>
-    <header>
-        <h1>🦋 Moths for Anna 🦋</h1>
-        <p class="subtitle">A new moth (or caterpillar) every hour.</p>
-        <a href="/random" class="random-link">🎲 Random Moth</a>
-    </header>
-    <div id="moths" class="grid">
-        <div class="loading">Loading moths...</div>
-    </div>
-    <script>
-        const GIST_ID = '13f60f151dac089590b88b9a55c4140e';
+import os
+import random
+import requests
+import json
+from datetime import datetime, timezone
+
+GH_TOKEN = os.environ.get("GH_TOKEN")
+GIST_ID = os.environ.get("GIST_ID")
+
+INATURALIST_API = "https://api.inaturalist.org/v1"
+MOTH_TAXON_ID = 47157
+
+
+def get_sent_moths():
+    if not GH_TOKEN or not GIST_ID:
+        print("No Gist configured, skipping duplicate check")
+        return []
+    response = requests.get(
+        f"https://api.github.com/gists/{GIST_ID}",
+        headers={"Authorization": f"Bearer {GH_TOKEN}"}
+    )
+    if not response.ok:
+        print(f"Warning: Could not fetch Gist: {response.status_code}")
+        return []
+    gist_data = response.json()
+    content = gist_data["files"]["sent_moths.json"]["content"]
+    sent_moths = json.loads(content)
+    return sent_moths
+
+
+def get_sent_moth_ids():
+    sent_moths = get_sent_moths()
+    if sent_moths and isinstance(sent_moths[0], dict):
+        return set(m["id"] for m in sent_moths)
+    return set(sent_moths)
+
+
+def save_sent_moth(moth):
+    if not GH_TOKEN or not GIST_ID:
+        return
+    sent_moths = get_sent_moths()
+    if sent_moths and not isinstance(sent_moths[0], dict):
+        sent_moths = []
+    sent_moths.append(moth)
+    response = requests.patch(
+        f"https://api.github.com/gists/{GIST_ID}",
+        headers={"Authorization": f"Bearer {GH_TOKEN}","Content-Type": "application/json"},
+        json={"files": {"sent_moths.json": {"content": json.dumps(sent_moths, indent=2)}}}
+    )
+    if not response.ok:
+        print(f"Warning: Could not update Gist: {response.status_code}")
+
+
+def get_moth_count():
+    sent_moths = get_sent_moths()
+    return len(sent_moths) + 1
+
+
+def get_family_info(taxon_id):
+    if not taxon_id:
+        return None
+    response = requests.get(f"{INATURALIST_API}/taxa/{taxon_id}", headers={"User-Agent": "MothMailer/1.0"})
+    if not response.ok:
+        return None
+    taxon_data = response.json().get("results", [])
+    if not taxon_data:
+        return None
+    ancestors = taxon_data[0].get("ancestors", [])
+    for ancestor in ancestors:
+        if ancestor.get("rank") == "family":
+            family_name = ancestor.get("name", "")
+            family_common = ancestor.get("preferred_common_name", "")
+            if family_common:
+                return f"{family_name} — {family_common}"
+            return family_name
+    return None
+
+
+def fetch_random_moth():
+    sent_ids = get_sent_moth_ids()
+    print(f"Already sent {len(sent_ids)} unique moths")
+    params = {"taxon_id": MOTH_TAXON_ID, "quality_grade": "research", "photos": "true", "photo_licensed": "true", "per_page": 200, "order_by": "random", "without_taxon_id": 47224}
+    
+    all_moths = []
+    favorited_moths = []
+    
+    for attempt in range(20):
+        response = requests.get(f"{INATURALIST_API}/observations", params=params, headers={"User-Agent": "MothMailer/1.0"})
+        response.raise_for_status()
+        results = response.json()["results"]
         
-        function formatDate(isoString) {
-            if (!isoString) return '';
-            const date = new Date(isoString);
-            return date.toLocaleDateString('en-US', { 
-                timeZone: 'America/Los_Angeles',
-                month: 'short', 
-                day: 'numeric', 
-                year: 'numeric',
-                hour: 'numeric',
-                minute: '2-digit',
-                hour12: true
-            });
-        }
+        new_moths = [m for m in results if m["id"] not in sent_ids]
+        new_moths = [m for m in new_moths if m.get("taxon", {}).get("preferred_common_name")]
+        all_moths.extend(new_moths)
         
-        async function loadMoths() {
-            try {
-                const response = await fetch(`https://api.github.com/gists/${GIST_ID}`);
-                const gist = await response.json();
-                const moths = JSON.parse(gist.files['sent_moths.json'].content);
-                const container = document.getElementById('moths');
-                if (!moths.length) {
-                    container.innerHTML = '<div class="loading">No moths yet. Check back soon!</div>';
-                    return;
-                }
-                const sorted = moths.reverse();
-                container.innerHTML = sorted.map(moth => `
-                    <div class="moth-card">
-                        <a href="${moth.observation_url}" target="_blank">
-                            <img src="${moth.photo_url}" alt="${moth.common_name}">
-                        </a>
-                        <div class="moth-info">
-                            <div class="moth-number">Moth #${moth.moth_number || ''}</div>
-                            <div class="timestamp">${formatDate(moth.sent_at)}</div>
-                            <div class="moth-name"><a href="${moth.observation_url}" target="_blank">${moth.common_name}</a></div>
-                            <div class="scientific-name">${moth.scientific_name}</div>
-                            ${moth.family ? `<div class="family">Family: ${moth.family}</div>` : ''}
-                            <div class="location">📍 ${moth.place}</div>
-                        </div>
-                    </div>
-                `).join('');
-            } catch (err) {
-                document.getElementById('moths').innerHTML = '<div class="loading">Error loading moths</div>';
-            }
-        }
-        loadMoths();
-    </script>
-</body>
-</html>
+        favorited_moths = [m for m in all_moths if m.get("faves_count", 0) > 0]
+        print(f"Attempt {attempt+1}: {len(new_moths)} new named moths, {len(favorited_moths)} total with favorites")
+        
+        if favorited_moths:
+            break
+    
+    if not all_moths:
+        raise Exception("No moth observations found")
+    
+    if favorited_moths:
+        observation = random.choice(favorited_moths)
+    else:
+        observation = random.choice(all_moths)
+    
+    photo = observation["photos"][0]
+    photo_url = photo["url"]
+    for size in ["square", "small", "medium", "thumb"]:
+        if size in photo_url:
+            photo_url = photo_url.replace(size, "large")
+            break
+    taxon = observation.get("taxon", {})
+    taxon_id = taxon.get("id", None)
+    common_name = taxon.get("preferred_common_name")
+    scientific_name = taxon.get("name", "Species unknown")
+    place = observation.get("place_guess", "Location unknown")
+    obs_url = f"https://www.inaturalist.org/observations/{observation['id']}"
+    observations_count = taxon.get("observations_count", 0)
+    family = get_family_info(taxon_id)
+    return {"id": observation["id"], "photo_url": photo_url, "common_name": common_name, "scientific_name": scientific_name, "place": place, "observation_url": obs_url, "attribution": photo.get("attribution", "Unknown photographer"), "observations_count": observations_count, "family": family}
+
+
+def main():
+    print(f"[{datetime.now().isoformat()}] Starting Moth Fetcher...")
+    try:
+        moth_number = get_moth_count()
+        print(f"This will be moth #{moth_number}")
+        print("Fetching random moth from iNaturalist...")
+        moth = fetch_random_moth()
+        print(f"Found: {moth['common_name']} ({moth['scientific_name']})")
+        if moth["family"]:
+            print(f"Family: {moth['family']}")
+        
+        moth["moth_number"] = moth_number
+        moth["sent_at"] = datetime.now(timezone.utc).isoformat()
+        save_sent_moth(moth)
+        print(f"Saved moth {moth['id']} to website")
+    except Exception as e:
+        print(f"Error: {e}")
+        raise
+
+
+if __name__ == "__main__":
+    main()
