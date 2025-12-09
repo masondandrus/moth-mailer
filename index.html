@@ -70,7 +70,7 @@
                         <div class="moth-info">
                             <div class="moth-number">Moth #${moth.moth_number || ''}</div>
                             <div class="timestamp">${formatDate(moth.sent_at)}</div>
-                            <div class="moth-name">${moth.common_name}</div>
+                            <div class="moth-name"><a href="${moth.observation_url}" target="_blank">${moth.common_name}</a></div>
                             <div class="scientific-name">${moth.scientific_name}</div>
                             ${moth.family ? `<div class="family">Family: ${moth.family}</div>` : ''}
                             <div class="location">📍 ${moth.place}</div>
