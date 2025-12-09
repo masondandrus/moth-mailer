@@ -9,7 +9,9 @@
         body { font-family: Georgia, serif; background-color: #faf9f7; color: #2d2d2d; padding: 40px 20px; }
         header { text-align: center; margin-bottom: 40px; }
         h1 { font-weight: normal; font-size: 2em; margin-bottom: 10px; }
-        .subtitle { color: #888; font-size: 1.1em; }
+        .subtitle { color: #888; font-size: 1.1em; margin-bottom: 15px; }
+        .random-link { display: inline-block; color: #6b705c; font-size: 0.95em; padding: 8px 16px; border: 1px solid #6b705c; border-radius: 6px; text-decoration: none; transition: all 0.2s; }
+        .random-link:hover { background: #6b705c; color: white; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 30px; max-width: 1400px; margin: 0 auto; }
         .moth-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: transform 0.2s; }
         .moth-card:hover { transform: translateY(-4px); }
@@ -32,6 +34,7 @@
     <header>
         <h1>🦋 Moths for Anna 🦋</h1>
         <p class="subtitle">A new moth (or caterpillar) every hour.</p>
+        <a href="/random" class="random-link">🎲 Random Moth</a>
     </header>
     <div id="moths" class="grid">
         <div class="loading">Loading moths...</div>
