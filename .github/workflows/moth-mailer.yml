@@ -36,7 +36,7 @@
     <div id="moth" class="moth-container">
         <div class="loading">Hit the button to find a moth!</div>
     </div>
-    <button id="randomize" class="button" onclick="fetchRandomMoth()">🦋 Find a Moth 🦋</button>
+    <button id="randomize" class="button" onclick="fetchRandomMoth()">Find a Moth  🦋</button>
     <script>
         async function getFamilyInfo(taxonId) {
             if (!taxonId) return null;
@@ -110,7 +110,7 @@
                 container.innerHTML = '<div class="loading">Error fetching moth. Try again!</div>';
             } finally {
                 button.disabled = false;
-                button.textContent = '🦋 Find Another Moth 🦋';
+                button.textContent = 'Find Another Moth  🦋';
             }
         }
     </script>
