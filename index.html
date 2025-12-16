@@ -7,13 +7,22 @@
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: Georgia, serif; background-color: #faf9f7; color: #2d2d2d; padding: 40px 20px; }
+        
+        /* Hamburger Menu */
+        .menu-toggle { position: fixed; top: 20px; left: 20px; z-index: 1000; background: white; border: 1px solid #ddd; border-radius: 8px; padding: 10px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .menu-toggle span { display: block; width: 20px; height: 2px; background: #2d2d2d; margin: 4px 0; }
+        .menu { position: fixed; top: 0; left: -250px; width: 250px; height: 100%; background: white; box-shadow: 2px 0 10px rgba(0,0,0,0.1); transition: left 0.3s; z-index: 999; padding: 80px 20px 20px; }
+        .menu.open { left: 0; }
+        .menu a { display: block; padding: 15px 10px; color: #2d2d2d; text-decoration: none; border-bottom: 1px solid #eee; }
+        .menu a:hover { color: #6b705c; }
+        .menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); z-index: 998; display: none; }
+        .menu-overlay.open { display: block; }
+        
         header { text-align: center; margin-bottom: 40px; }
         h1 { font-weight: normal; font-size: 2em; margin-bottom: 10px; }
         .subtitle { color: #888; font-size: 1.1em; margin-bottom: 15px; }
-        .random-link { display: inline-block; color: #6b705c; font-size: 0.95em; padding: 8px 16px; border: 1px solid #6b705c; border-radius: 6px; text-decoration: none; transition: all 0.2s; }
-        .random-link:hover { background: #6b705c; color: white; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 30px; max-width: 1400px; margin: 0 auto; }
-        .moth-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: transform 0.2s; }
+        .moth-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: transform 0.2s; position: relative; }
         .moth-card:hover { transform: translateY(-4px); }
         .moth-card a { display: block; }
         .moth-card img { width: 100%; height: 250px; object-fit: cover; cursor: pointer; }
@@ -25,22 +34,61 @@
         .scientific-name { font-style: italic; color: #666; margin-bottom: 10px; }
         .family { font-size: 0.9em; color: #555; margin-bottom: 5px; }
         .location { font-size: 0.9em; color: #888; margin-bottom: 5px; }
-        .timestamp { font-size: 0.8em; color: #aaa; margin-bottom: 6px}
+        .timestamp { font-size: 0.8em; color: #aaa; margin-bottom: 6px; }
         .loading { text-align: center; padding: 60px; color: #888; }
         a { color: inherit; text-decoration: none; }
+        
+        /* Heart icon */
+        .heart { position: absolute; top: 15px; right: 15px; font-size: 24px; cursor: pointer; opacity: 0.8; transition: all 0.2s; display: none; }
+        .heart:hover { transform: scale(1.1); opacity: 1; }
+        .heart.favorited { color: #e74c3c; }
+        .heart.not-favorited { color: white; text-shadow: 0 0 3px rgba(0,0,0,0.5); }
+        .admin-mode .heart { display: block; }
     </style>
 </head>
 <body>
+    <div class="menu-toggle" onclick="toggleMenu()">
+        <span></span><span></span><span></span>
+    </div>
+    <div class="menu-overlay" onclick="toggleMenu()"></div>
+    <nav class="menu">
+        <a href="/">🦋 Home</a>
+        <a href="/random">🎲 Random Moth</a>
+        <a href="/best">⭐ Best Moths</a>
+    </nav>
+    
     <header>
         <h1>🦋 Moths for Anna 🦋</h1>
         <p class="subtitle">A new moth (or caterpillar) every hour.</p>
-        <a href="/random" class="random-link">🎲 Random Moth</a>
     </header>
     <div id="moths" class="grid">
         <div class="loading">Loading moths...</div>
     </div>
     <script>
         const GIST_ID = '13f60f151dac089590b88b9a55c4140e';
+        const GH_TOKEN = 'YOUR_TOKEN_HERE'; // Replace with your token
+        const ADMIN_SECRET = 'mothsrock';
+        
+        let isAdmin = false;
+        let favorites = [];
+        
+        function toggleMenu() {
+            document.querySelector('.menu').classList.toggle('open');
+            document.querySelector('.menu-overlay').classList.toggle('open');
+        }
+        
+        function checkAdmin() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('admin') === ADMIN_SECRET) {
+                isAdmin = true;
+                sessionStorage.setItem('mothAdmin', 'true');
+            } else if (sessionStorage.getItem('mothAdmin') === 'true') {
+                isAdmin = true;
+            }
+            if (isAdmin) {
+                document.body.classList.add('admin-mode');
+            }
+        }
         
         function formatDate(isoString) {
             if (!isoString) return '';
@@ -56,7 +104,59 @@
             });
         }
         
+        async function loadFavorites() {
+            try {
+                const response = await fetch(`https://api.github.com/gists/${GIST_ID}`);
+                const gist = await response.json();
+                if (gist.files['favorites.json']) {
+                    favorites = JSON.parse(gist.files['favorites.json'].content);
+                }
+            } catch (err) {
+                console.log('No favorites yet');
+            }
+        }
+        
+        async function toggleFavorite(mothId) {
+            if (!isAdmin) return;
+            
+            const index = favorites.indexOf(mothId);
+            if (index > -1) {
+                favorites.splice(index, 1);
+            } else {
+                favorites.push(mothId);
+            }
+            
+            // Update UI immediately
+            const heart = document.querySelector(`[data-moth-id="${mothId}"]`);
+            if (heart) {
+                heart.classList.toggle('favorited');
+                heart.classList.toggle('not-favorited');
+                heart.textContent = favorites.includes(mothId) ? '♥' : '♡';
+            }
+            
+            // Save to Gist
+            try {
+                await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${GH_TOKEN}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        files: {
+                            'favorites.json': {
+                                content: JSON.stringify(favorites)
+                            }
+                        }
+                    })
+                });
+            } catch (err) {
+                console.error('Failed to save favorite:', err);
+            }
+        }
+        
         async function loadMoths() {
+            await loadFavorites();
             try {
                 const response = await fetch(`https://api.github.com/gists/${GIST_ID}`);
                 const gist = await response.json();
@@ -67,8 +167,11 @@
                     return;
                 }
                 const sorted = moths.reverse();
-                container.innerHTML = sorted.map(moth => `
+                container.innerHTML = sorted.map(moth => {
+                    const isFav = favorites.includes(moth.id);
+                    return `
                     <div class="moth-card">
+                        <span class="heart ${isFav ? 'favorited' : 'not-favorited'}" data-moth-id="${moth.id}" onclick="toggleFavorite(${moth.id})">${isFav ? '♥' : '♡'}</span>
                         <a href="${moth.observation_url}" target="_blank">
                             <img src="${moth.photo_url}" alt="${moth.common_name}">
                         </a>
@@ -78,14 +181,16 @@
                             <div class="moth-name"><a href="${moth.observation_url}" target="_blank">${moth.common_name}</a></div>
                             <div class="scientific-name">${moth.scientific_name}</div>
                             ${moth.family ? `<div class="family">Family: ${moth.family}</div>` : ''}
-                            <div class="location">📍 ${moth.place}</div>
+                            <div class="location">📍 ${moth.place || 'Unknown location'}</div>
                         </div>
                     </div>
-                `).join('');
+                `}).join('');
             } catch (err) {
                 document.getElementById('moths').innerHTML = '<div class="loading">Error loading moths</div>';
             }
         }
+        
+        checkAdmin();
         loadMoths();
     </script>
 </body>
