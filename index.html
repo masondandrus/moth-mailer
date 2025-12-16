@@ -81,8 +81,8 @@
             const params = new URLSearchParams(window.location.search);
             if (params.get('admin') === ADMIN_SECRET) {
                 isAdmin = true;
-                sessionStorage.setItem('mothAdmin', 'true');
-            } else if (sessionStorage.getItem('mothAdmin') === 'true') {
+                localStorage.setItem('mothAdmin', 'true');
+            } else if (localStorage.getItem('mothAdmin') === 'true') {
                 isAdmin = true;
             }
             if (isAdmin) {
