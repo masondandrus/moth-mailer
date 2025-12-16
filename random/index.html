@@ -70,6 +70,7 @@
         let isAdmin = false;
         let currentMoth = null;
         let favorites = [];
+        let seenMoths = [];
         
         function toggleMenu() {
             document.querySelector('.menu').classList.toggle('open');
@@ -166,18 +167,23 @@
                     quality_grade: 'research',
                     photos: 'true',
                     photo_licensed: 'true',
-                    per_page: 50,
+                    per_page: 200,
                     order_by: 'random',
                     without_taxon_id: 47224
                 });
                 const response = await fetch(`https://api.inaturalist.org/v1/observations?${params}`);
                 const data = await response.json();
-                const withNames = data.results.filter(m => m.taxon?.preferred_common_name);
+                const withNames = data.results.filter(m => m.taxon?.preferred_common_name && !seenMoths.includes(m.id));
+                
                 if (!withNames.length) {
-                    container.innerHTML = '<div class="loading">No moths found, try again!</div>';
+                    seenMoths = [];
+                    container.innerHTML = '<div class="loading">Seen them all! Click again to start fresh.</div>';
                     return;
                 }
+                
                 const moth = withNames[Math.floor(Math.random() * withNames.length)];
+                seenMoths.push(moth.id);
+                
                 const photo = moth.photos[0];
                 let photoUrl = photo.url.replace('square', 'large').replace('small', 'large').replace('medium', 'large').replace('thumb', 'large');
                 const taxon = moth.taxon || {};
@@ -189,7 +195,6 @@
                 
                 const family = await getFamilyInfo(taxonId);
                 
-                // Store current moth for favoriting
                 currentMoth = {
                     id: moth.id,
                     photo_url: photoUrl,
