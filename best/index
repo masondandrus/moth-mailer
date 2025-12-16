@@ -64,7 +64,7 @@
     </div>
     <script>
         const GIST_ID = '13f60f151dac089590b88b9a55c4140e';
-        const GH_TOKEN = 'YOUR_TOKEN_HERE'; // Replace with your token
+        const WORKER_URL = 'https://moth-favorites.masondandrus.workers.dev/';
         const ADMIN_SECRET = 'mothsrock';
         
         let isAdmin = false;
@@ -118,21 +118,12 @@
                 }
             }
             
-            // Save to Gist
+            // Save via Worker
             try {
-                await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Authorization': `Bearer ${GH_TOKEN}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        files: {
-                            'favorites.json': {
-                                content: JSON.stringify(favorites)
-                            }
-                        }
-                    })
+                await fetch(WORKER_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ favorites })
                 });
             } catch (err) {
                 console.error('Failed to save favorite:', err);
