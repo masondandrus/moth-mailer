@@ -134,7 +134,18 @@
             try {
                 const response = await fetch(`https://api.github.com/gists/${GIST_ID}`);
                 const gist = await response.json();
-                const allMoths = JSON.parse(gist.files['sent_moths.json'].content);
+                
+                // Check if file is truncated
+                const fileInfo = gist.files['sent_moths.json'];
+                let mothsData;
+                if (fileInfo.truncated) {
+                    const rawResponse = await fetch(fileInfo.raw_url);
+                    mothsData = await rawResponse.text();
+                } else {
+                    mothsData = fileInfo.content;
+                }
+                
+                const allMoths = JSON.parse(mothsData);
                 
                 if (gist.files['favorites.json']) {
                     favorites = JSON.parse(gist.files['favorites.json'].content);
