@@ -25,7 +25,19 @@ def get_sent_moths():
         print(f"Warning: Could not fetch Gist: {response.status_code}")
         return []
     gist_data = response.json()
-    content = gist_data["files"]["sent_moths.json"]["content"]
+    file_info = gist_data["files"]["sent_moths.json"]
+    
+    # Check if content is truncated (large files)
+    if file_info.get("truncated", False):
+        print("File truncated, fetching full content via raw URL...")
+        raw_response = requests.get(file_info["raw_url"], headers={"Authorization": f"Bearer {GH_TOKEN}"})
+        if not raw_response.ok:
+            print(f"Warning: Could not fetch raw content: {raw_response.status_code}")
+            return []
+        content = raw_response.text
+    else:
+        content = file_info["content"]
+    
     sent_moths = json.loads(content)
     return sent_moths
 
