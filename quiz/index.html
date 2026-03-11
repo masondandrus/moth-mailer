@@ -161,12 +161,28 @@
                 ? mothsWithFamily[Math.floor(Math.random() * mothsWithFamily.length)]
                 : favoriteMoths[Math.floor(Math.random() * favoriteMoths.length)];
             
-            // Get wrong options
-            const wrongMoths = getRandomItems(
-                questionType === 'family' && mothsWithFamily.length >= 4 ? mothsWithFamily : favoriteMoths,
-                3,
-                correctMoth
-            );
+            // Get wrong options, deduplicated by display text to avoid duplicate answers
+            const pool = questionType === 'family' && mothsWithFamily.length >= 4 ? mothsWithFamily : favoriteMoths;
+            const getPoolText = questionType === 'name' ? m => m.common_name
+                : questionType === 'family' ? m => m.family
+                : questionType === 'scientific' ? m => m.scientific_name
+                : null;
+
+            let wrongMoths = [];
+            if (getPoolText) {
+                const usedTexts = new Set([getPoolText(correctMoth)]);
+                const shuffled = shuffle(pool.filter(m => m.id !== correctMoth.id));
+                for (const m of shuffled) {
+                    const text = getPoolText(m);
+                    if (text && !usedTexts.has(text)) {
+                        usedTexts.add(text);
+                        wrongMoths.push(m);
+                        if (wrongMoths.length === 3) break;
+                    }
+                }
+            } else {
+                wrongMoths = getRandomItems(pool, 3, correctMoth);
+            }
             
             if (questionType === 'photo') {
                 // Show name, pick from 4 photos
