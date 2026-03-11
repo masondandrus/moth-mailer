@@ -86,7 +86,6 @@
         let favoriteMoths = [];
         let correctCount = 0;
         let totalCount = 0;
-        let currentCorrectAnswer = null;
         let answered = false;
         
         function toggleMenu() {
@@ -149,20 +148,20 @@
                 return;
             }
             
-            // Pick question type randomly
-            const questionTypes = ['name', 'family', 'scientific', 'photo'];
-            const questionType = questionTypes[Math.floor(Math.random() * questionTypes.length)];
-            
             // For family questions, filter to moths that have family data
             const mothsWithFamily = favoriteMoths.filter(m => m.family);
+            const familyPlayable = mothsWithFamily.length >= 4;
+
+            // Pick question type randomly, skipping family if not enough data
+            const questionTypes = ['name', 'scientific', 'photo'];
+            if (familyPlayable) questionTypes.push('family');
+            const questionType = questionTypes[Math.floor(Math.random() * questionTypes.length)];
             
-            // Pick correct moth
-            const correctMoth = questionType === 'family' && mothsWithFamily.length >= 4
-                ? mothsWithFamily[Math.floor(Math.random() * mothsWithFamily.length)]
-                : favoriteMoths[Math.floor(Math.random() * favoriteMoths.length)];
+            // Pick correct moth from appropriate pool
+            const pool = questionType === 'family' ? mothsWithFamily : favoriteMoths;
+            const correctMoth = pool[Math.floor(Math.random() * pool.length)];
             
             // Get wrong options, deduplicated by display text to avoid duplicate answers
-            const pool = questionType === 'family' && mothsWithFamily.length >= 4 ? mothsWithFamily : favoriteMoths;
             const getPoolText = questionType === 'name' ? m => m.common_name
                 : questionType === 'family' ? m => m.family
                 : questionType === 'scientific' ? m => m.scientific_name
@@ -180,6 +179,11 @@
                         if (wrongMoths.length === 3) break;
                     }
                 }
+                // If we couldn't find 3 unique distractors, re-roll with a different question type
+                if (wrongMoths.length < 3) {
+                    generateQuestion();
+                    return;
+                }
             } else {
                 wrongMoths = getRandomItems(pool, 3, correctMoth);
             }
@@ -193,7 +197,7 @@
                         <div class="question">Which photo is the <strong>${correctMoth.common_name}</strong>?</div>
                         <div class="photo-grid">
                             ${allOptions.map(moth => `
-                                <div class="photo-option" onclick="handlePhotoAnswer(${moth.id}, ${correctMoth.id}, '${correctMoth.common_name.replace(/'/g, "\\'")}', this)">
+                                <div class="photo-option" data-moth-id="${moth.id}" onclick="handlePhotoAnswer(${moth.id}, ${correctMoth.id}, '${correctMoth.common_name.replace(/'/g, "\\'")}', this)">
                                     <img src="${moth.photo_url}" alt="Moth option">
                                 </div>
                             `).join('')}
@@ -268,7 +272,7 @@
             } else {
                 el.classList.add('wrong');
                 allPhotos.forEach(p => {
-                    if (p.onclick.toString().includes(correctId + ',')) {
+                    if (parseInt(p.dataset.mothId) === correctId) {
                         p.classList.add('correct');
                     }
                 });
