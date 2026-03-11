@@ -64,10 +64,9 @@ def moths_to_csv(moths):
     return output.getvalue()
 
 
-def save_sent_moth(moth):
+def save_sent_moth(moth, sent_moths):
     if not GH_TOKEN or not GIST_ID:
         return
-    sent_moths = get_sent_moths()
     if sent_moths and not isinstance(sent_moths[0], dict):
         sent_moths = []
     sent_moths.append(moth)
@@ -82,11 +81,6 @@ def save_sent_moth(moth):
     )
     if not response.ok:
         print(f"Warning: Could not update Gist: {response.status_code}")
-
-
-def get_moth_count():
-    sent_moths = get_sent_moths()
-    return len(sent_moths) + 1
 
 
 def get_family_info(taxon_id):
@@ -161,7 +155,8 @@ def fetch_random_moth():
 def main():
     print(f"[{datetime.now().isoformat()}] Starting Moth Fetcher...")
     try:
-        moth_number = get_moth_count()
+        sent_moths = get_sent_moths()
+        moth_number = len(sent_moths) + 1
         print(f"This will be moth #{moth_number}")
         print("Fetching random moth from iNaturalist...")
         moth = fetch_random_moth()
@@ -171,7 +166,7 @@ def main():
         
         moth["moth_number"] = moth_number
         moth["sent_at"] = datetime.now(timezone.utc).isoformat()
-        save_sent_moth(moth)
+        save_sent_moth(moth, sent_moths)
         print(f"Saved moth {moth['id']} to website and CSV")
     except Exception as e:
         print(f"Error: {e}")
