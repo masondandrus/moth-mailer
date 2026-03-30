@@ -12,8 +12,13 @@ GIST_ID = os.environ.get("GIST_ID")
 INATURALIST_API = "https://api.inaturalist.org/v1"
 MOTH_TAXON_ID = 47157
 
+_cached_sent_moths = None
+
 
 def get_sent_moths():
+    global _cached_sent_moths
+    if _cached_sent_moths is not None:
+        return _cached_sent_moths
     if not GH_TOKEN or not GIST_ID:
         print("No Gist configured, skipping duplicate check")
         return []
@@ -39,6 +44,7 @@ def get_sent_moths():
         content = file_info["content"]
     
     sent_moths = json.loads(content)
+    _cached_sent_moths = sent_moths
     return sent_moths
 
 
@@ -64,9 +70,10 @@ def moths_to_csv(moths):
     return output.getvalue()
 
 
-def save_sent_moth(moth, sent_moths):
+def save_sent_moth(moth):
     if not GH_TOKEN or not GIST_ID:
         return
+    sent_moths = get_sent_moths()
     if sent_moths and not isinstance(sent_moths[0], dict):
         sent_moths = []
     sent_moths.append(moth)
@@ -81,6 +88,11 @@ def save_sent_moth(moth, sent_moths):
     )
     if not response.ok:
         print(f"Warning: Could not update Gist: {response.status_code}")
+
+
+def get_moth_count():
+    sent_moths = get_sent_moths()
+    return len(sent_moths) + 1
 
 
 def get_family_info(taxon_id):
@@ -155,8 +167,7 @@ def fetch_random_moth():
 def main():
     print(f"[{datetime.now().isoformat()}] Starting Moth Fetcher...")
     try:
-        sent_moths = get_sent_moths()
-        moth_number = len(sent_moths) + 1
+        moth_number = get_moth_count()
         print(f"This will be moth #{moth_number}")
         print("Fetching random moth from iNaturalist...")
         moth = fetch_random_moth()
@@ -166,7 +177,7 @@ def main():
         
         moth["moth_number"] = moth_number
         moth["sent_at"] = datetime.now(timezone.utc).isoformat()
-        save_sent_moth(moth, sent_moths)
+        save_sent_moth(moth)
         print(f"Saved moth {moth['id']} to website and CSV")
     except Exception as e:
         print(f"Error: {e}")
