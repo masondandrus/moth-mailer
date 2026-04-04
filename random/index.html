@@ -37,9 +37,9 @@
         a { color: #6b705c; }
         
         /* Heart icon */
-        .heart { position: absolute; top: 15px; right: 15px; font-size: 24px; cursor: pointer; opacity: 0.8; transition: all 0.2s; display: none; color: white; text-shadow: 0 0 3px rgba(0,0,0,0.5); }
-        .heart:hover { transform: scale(1.1); opacity: 1; }
-        .heart.favorited { color: #e74c3c; text-shadow: none; }
+        .heart { position: absolute; top: 12px; right: 12px; font-size: 26px; cursor: pointer; transition: all 0.2s; display: none; z-index: 10; padding: 7px 9px; border-radius: 50%; background: rgba(255,255,255,0.80); line-height: 1; color: rgba(0,0,0,0.35); }
+        .heart:hover { transform: scale(1.12); background: rgba(255,255,255,0.95); }
+        .heart.favorited { color: #e74c3c; }
         .admin-mode .heart { display: block; }
     </style>
 </head>
