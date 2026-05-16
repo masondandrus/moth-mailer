@@ -181,27 +181,31 @@
             }, 250);
         }
         
-        function renderMoths(moths, query = '') {
-            const container = document.getElementById('moths');
-            if (!moths.length) {
-                container.innerHTML = query
-                    ? '<div class="loading">No moths match your search.</div>'
-                    : '<div class="loading">No moths yet. Check back soon!</div>';
-                return;
-            }
-            container.innerHTML = moths.map(moth => {
-                const isFav = favorites.includes(moth.id);
-                const hasCommon = !!moth.common_name;
-                // Title: common name if present, else italicized scientific name.
-                // Both branches still get search-term highlighting.
-                const rawTitle = hasCommon ? moth.common_name : (moth.scientific_name || 'Unknown species');
-                const titleHtml = query ? highlightText(rawTitle, query) : rawTitle;
-                const name = hasCommon ? titleHtml : `<em>${titleHtml}</em>`;
-                const sci = query ? highlightText(moth.scientific_name, query) : (moth.scientific_name || '');
-                const fam = moth.family ? (query ? highlightText(moth.family, query) : moth.family) : '';
-                const loc = query ? highlightText(moth.place || 'Unknown location', query) : (moth.place || 'Unknown location');
-                const seq = moth.sequence_number != null ? moth.sequence_number : '';
-                return `
+        // --- Incremental rendering ---
+        // The full collection can be thousands of cards. Building all of them
+        // in one innerHTML assignment freezes the main thread ("Page
+        // Unresponsive"). Instead we render in batches: an initial batch on
+        // load/search, then more as the user scrolls a sentinel into view via
+        // IntersectionObserver (no scroll-event thrash). Scales to any size.
+        const RENDER_BATCH = 60;
+        let renderList = [];      // the moths to display (all or filtered)
+        let renderQuery = '';     // active search query (for highlighting)
+        let renderCursor = 0;     // how many of renderList are painted
+        let renderObserver = null;
+
+        function cardHTML(moth, query) {
+            const isFav = favorites.includes(moth.id);
+            const hasCommon = !!moth.common_name;
+            // Title: common name if present, else italicized scientific name.
+            // Both branches still get search-term highlighting.
+            const rawTitle = hasCommon ? moth.common_name : (moth.scientific_name || 'Unknown species');
+            const titleHtml = query ? highlightText(rawTitle, query) : rawTitle;
+            const name = hasCommon ? titleHtml : `<em>${titleHtml}</em>`;
+            const sci = query ? highlightText(moth.scientific_name, query) : (moth.scientific_name || '');
+            const fam = moth.family ? (query ? highlightText(moth.family, query) : moth.family) : '';
+            const loc = query ? highlightText(moth.place || 'Unknown location', query) : (moth.place || 'Unknown location');
+            const seq = moth.sequence_number != null ? moth.sequence_number : '';
+            return `
                 <div class="moth-card">
                     <span class="heart ${isFav ? 'favorited' : 'not-favorited'}" data-moth-id="${moth.id}" onclick="toggleFavorite(${moth.id})">${isFav ? '♥' : '♡'}</span>
                     <a href="${moth.observation_url}" target="_blank">
@@ -216,11 +220,82 @@
                         <div class="location">📍 ${loc}</div>
                     </div>
                 </div>
-            `}).join('');
+            `;
+        }
+
+        function renderNextBatch() {
+            const container = document.getElementById('moths');
+            const sentinel = document.getElementById('scrollSentinel');
+            const slice = renderList.slice(renderCursor, renderCursor + RENDER_BATCH);
+            if (slice.length) {
+                const html = slice.map(m => cardHTML(m, renderQuery)).join('');
+                if (sentinel) {
+                    sentinel.insertAdjacentHTML('beforebegin', html);
+                } else {
+                    container.insertAdjacentHTML('beforeend', html);
+                }
+                renderCursor += slice.length;
+            }
+            // All painted — stop observing and drop the sentinel.
+            if (renderCursor >= renderList.length) {
+                if (renderObserver) { renderObserver.disconnect(); renderObserver = null; }
+                if (sentinel) sentinel.remove();
+            }
+        }
+
+        function renderMoths(moths, query = '') {
+            const container = document.getElementById('moths');
+            // Tear down any previous observer before re-rendering.
+            if (renderObserver) { renderObserver.disconnect(); renderObserver = null; }
+
+            if (!moths.length) {
+                container.innerHTML = query
+                    ? '<div class="loading">No moths match your search.</div>'
+                    : '<div class="loading">No moths yet. Check back soon!</div>';
+                return;
+            }
+
+            renderList = moths;
+            renderQuery = query;
+            renderCursor = 0;
+
+            // Fresh container with a sentinel the observer watches.
+            container.innerHTML = '<div id="scrollSentinel" aria-hidden="true"></div>';
+            renderNextBatch();
+
+            // If everything fit in the first batch the sentinel is already
+            // gone; otherwise observe it to stream subsequent batches.
+            const sentinel = document.getElementById('scrollSentinel');
+            if (sentinel && 'IntersectionObserver' in window) {
+                renderObserver = new IntersectionObserver((entries) => {
+                    if (entries.some(e => e.isIntersecting)) renderNextBatch();
+                }, { rootMargin: '600px 0px' });
+                renderObserver.observe(sentinel);
+            } else if (sentinel) {
+                // No IntersectionObserver support: fall back to rendering all
+                // remaining in chunks via rAF so the thread stays responsive.
+                const pump = () => {
+                    renderNextBatch();
+                    if (renderCursor < renderList.length) requestAnimationFrame(pump);
+                };
+                requestAnimationFrame(pump);
+            }
         }
         
         // --- Favorites ---
         // Single-favorite API call. Each click changes ONE favorite. The Worker
+        // Update a single heart in place (class + glyph) without re-rendering
+        // the grid. Re-rendering would reset the incremental cursor and snap
+        // the scroll position back to the top on every favorite toggle.
+        function paintHeart(mothId) {
+            const fav = favorites.includes(mothId);
+            document.querySelectorAll(`.heart[data-moth-id="${mothId}"]`).forEach(el => {
+                el.classList.toggle('favorited', fav);
+                el.classList.toggle('not-favorited', !fav);
+                el.textContent = fav ? '♥' : '♡';
+            });
+        }
+
         // never sees a full favorites list from us, so a stale tab can no longer
         // wipe other devices' adds via the legacy POST / reconciliation path.
         async function toggleFavorite(mothId) {
@@ -228,13 +303,13 @@
             
             const wasFavorited = favorites.includes(mothId);
             
-            // Optimistic UI update
+            // Optimistic UI update (in place — no grid rebuild)
             if (wasFavorited) {
                 favorites = favorites.filter(id => id !== mothId);
             } else {
                 favorites.push(mothId);
             }
-            filterMoths();
+            paintHeart(mothId);
             
             // Build request body. Send observation data too so the Worker can
             // insert the observation into D1 if it's missing (defensive).
@@ -277,10 +352,10 @@
                 const inUI = favorites.includes(mothId);
                 if (serverFavorited && !inUI) {
                     favorites.push(mothId);
-                    filterMoths();
+                    paintHeart(mothId);
                 } else if (!serverFavorited && inUI) {
                     favorites = favorites.filter(id => id !== mothId);
-                    filterMoths();
+                    paintHeart(mothId);
                 }
             } catch (err) {
                 console.error('Failed to save favorite:', err);
@@ -290,7 +365,7 @@
                 } else {
                     favorites = favorites.filter(id => id !== mothId);
                 }
-                filterMoths();
+                paintHeart(mothId);
             }
         }
         
