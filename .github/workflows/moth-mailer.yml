@@ -1,29 +1,32 @@
-name: Hourly Moth Mailer
-
+name: Hourly Critter Mailer
 on:
   schedule:
     - cron: '57 * * * *'
   workflow_dispatch:
-
 jobs:
-  send-moth:
+  send-critter:
     runs-on: ubuntu-latest
-    
+
+    strategy:
+      fail-fast: false          # one creature's bad hour must not block the others
+      matrix:
+        group: [moth, nudibranch, amphibian]
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      
-      - name: Send moth email
+
+      - name: Send critter
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
@@ -32,4 +35,4 @@ jobs:
           GIST_ID: ${{ secrets.GIST_ID }}
           API_SECRET: ${{ secrets.API_SECRET }}
           MOTH_NUMBER: ${{ github.run_number }}
-        run: python moth_mailer.py
+        run: python moth_mailer.py --group=${{ matrix.group }}
