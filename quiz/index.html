@@ -80,7 +80,7 @@
     </div>
     
     <script>
-        const GIST_ID = '13f60f151dac089590b88b9a55c4140e';
+        const WORKER_URL = 'https://moth-favorites.masondandrus.workers.dev/';
         
         let favorites = [];
         let favoriteMoths = [];
@@ -140,42 +140,71 @@
             showFeedback(isCorrect, correctDisplay);
         }
         
-        function generateQuestion() {
+        function generateQuestion(attempt = 0) {
             answered = false;
             const container = document.getElementById('quiz');
-            
+
             if (favoriteMoths.length < 4) {
                 container.innerHTML = '<div class="loading">Need at least 4 favorites to play the quiz!</div>';
                 return;
             }
-            
-            // Pick question type, but skip family if not enough moths have family data
+
+            // Bail out if we've retried too many times (e.g. favorites lack the
+            // variety needed to build any question type). Prevents an unbounded
+            // setTimeout recursion.
+            if (attempt >= 8) {
+                container.innerHTML = '<div class="loading">Couldn\'t generate a question — try favoriting more variety!</div>';
+                return;
+            }
+
+            // Build the eligible question-type list. A type is only eligible if
+            // at least 4 favorites carry the data that type needs:
+            //   - family: needs m.family
+            //   - name / photo: need m.common_name (nudibranchs/amphibians often lack it)
+            //   - scientific: always available (every observation has a scientific name)
             let questionTypes = ['name', 'family', 'scientific', 'photo'];
             const mothsWithFamily = favoriteMoths.filter(m => m.family);
             if (mothsWithFamily.length < 4) {
                 questionTypes = questionTypes.filter(t => t !== 'family');
             }
+            const mothsWithCommon = favoriteMoths.filter(m => m.common_name);
+            if (mothsWithCommon.length < 4) {
+                questionTypes = questionTypes.filter(t => t !== 'name' && t !== 'photo');
+            }
+            if (!questionTypes.length) {
+                container.innerHTML = '<div class="loading">Couldn\'t generate a question — try favoriting more variety!</div>';
+                return;
+            }
             const questionType = questionTypes[Math.floor(Math.random() * questionTypes.length)];
-            
-            // Choose the pool based on question type
-            const pool = questionType === 'family' ? mothsWithFamily : favoriteMoths;
-            
+
+            // Choose the pool based on question type. name/photo require a
+            // common name; family requires a family; scientific uses all.
+            let pool;
+            if (questionType === 'family') {
+                pool = mothsWithFamily;
+            } else if (questionType === 'name' || questionType === 'photo') {
+                pool = mothsWithCommon;
+            } else {
+                pool = favoriteMoths;
+            }
+
             // Pick correct moth
             const correctMoth = pool[Math.floor(Math.random() * pool.length)];
-            
-            // Get wrong options, ensuring unique display text
+
+            // Get wrong options, ensuring unique display text. Coerce to '' so
+            // a malformed/null field can never throw on a later .replace().
             const getDisplayText = (m) => {
-                if (questionType === 'name') return m.common_name;
-                if (questionType === 'family') return m.family;
-                if (questionType === 'scientific') return m.scientific_name;
+                if (questionType === 'name') return m.common_name || '';
+                if (questionType === 'family') return m.family || '';
+                if (questionType === 'scientific') return m.scientific_name || '';
                 return m.id; // photo type — uniqueness by ID
             };
-            
+
             const correctText = getDisplayText(correctMoth);
             const usedTexts = new Set([correctText]);
             const wrongMoths = [];
             const shuffledPool = shuffle(pool.filter(m => m.id !== correctMoth.id));
-            
+
             for (const m of shuffledPool) {
                 const text = getDisplayText(m);
                 if (!usedTexts.has(text)) {
@@ -184,24 +213,27 @@
                 }
                 if (wrongMoths.length === 3) break;
             }
-            
+
             if (wrongMoths.length < 3) {
-                // Not enough unique options, try a different question type
+                // Not enough unique options for this type; retry with a bounded
+                // counter so we can't loop forever.
                 container.innerHTML = '<div class="loading">Loading question...</div>';
-                setTimeout(generateQuestion, 0);
+                setTimeout(() => generateQuestion(attempt + 1), 0);
                 return;
             }
             
             if (questionType === 'photo') {
-                // Show name, pick from 4 photos
+                // Show name, pick from 4 photos. (pool guarantees common_name
+                // is present here, but coerce defensively before .replace().)
                 const allOptions = shuffle([correctMoth, ...wrongMoths]);
+                const correctCommon = correctMoth.common_name || '';
                 
                 container.innerHTML = `
                     <div class="quiz-content">
-                        <div class="question">Which photo is the <strong>${correctMoth.common_name}</strong>?</div>
+                        <div class="question">Which photo is the <strong>${correctCommon}</strong>?</div>
                         <div class="photo-grid">
                             ${allOptions.map(moth => `
-                                <div class="photo-option" data-moth-id="${moth.id}" onclick="handlePhotoAnswer(${moth.id}, ${correctMoth.id}, '${correctMoth.common_name.replace(/'/g, "\\'")}', this)">
+                                <div class="photo-option" data-moth-id="${moth.id}" onclick="handlePhotoAnswer(${moth.id}, ${correctMoth.id}, '${correctCommon.replace(/'/g, "\\'")}', this)">
                                     <img src="${moth.photo_url}" alt="Moth option">
                                 </div>
                             `).join('')}
@@ -215,16 +247,16 @@
                 
                 if (questionType === 'name') {
                     question = 'What moth is this?';
-                    correctAnswer = correctMoth.common_name;
-                    getOptionText = m => m.common_name;
+                    correctAnswer = correctMoth.common_name || '';
+                    getOptionText = m => m.common_name || '';
                 } else if (questionType === 'family') {
                     question = 'What family does this moth belong to?';
-                    correctAnswer = correctMoth.family;
-                    getOptionText = m => m.family;
+                    correctAnswer = correctMoth.family || '';
+                    getOptionText = m => m.family || '';
                 } else {
                     question = 'What is the scientific name?';
-                    correctAnswer = correctMoth.scientific_name;
-                    getOptionText = m => m.scientific_name;
+                    correctAnswer = correctMoth.scientific_name || '';
+                    getOptionText = m => m.scientific_name || '';
                 }
                 
                 const allOptions = shuffle([correctMoth, ...wrongMoths]);
@@ -287,28 +319,18 @@
         
         async function loadQuiz() {
             try {
-                const response = await fetch(`https://api.github.com/gists/${GIST_ID}`);
-                if (!response.ok) throw new Error(`Gist fetch failed: ${response.status}`);
-                const gist = await response.json();
-                
-                // Check if file is truncated
-                const fileInfo = gist.files['sent_moths.json'];
-                let mothsData;
-                if (fileInfo.truncated) {
-                    const rawResponse = await fetch(fileInfo.raw_url);
-                    mothsData = await rawResponse.text();
-                } else {
-                    mothsData = fileInfo.content;
-                }
-                
-                const allMoths = JSON.parse(mothsData);
-                
-                if (gist.files['favorites.json']) {
-                    favorites = JSON.parse(gist.files['favorites.json'].content);
-                }
-                
+                const response = await fetch(
+                    WORKER_URL.replace(/\/$/, '') + '/api/moth/all'
+                );
+                if (!response.ok) throw new Error(`API fetch failed: ${response.status}`);
+                const result = await response.json();
+                if (!result.ok) throw new Error(result.error || 'API returned not ok');
+
+                const allMoths = result.data.observations || [];
+                favorites = result.data.favorites || [];
+
                 favoriteMoths = allMoths.filter(m => favorites.includes(m.id));
-                
+
                 generateQuestion();
             } catch (err) {
                 console.error('Failed to load quiz:', err);
