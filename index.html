@@ -54,10 +54,10 @@
         a { color: inherit; text-decoration: none; }
         
         /* Heart icon */
-        .heart { position: absolute; top: 12px; right: 12px; font-size: 26px; cursor: pointer; transition: all 0.2s; display: none; z-index: 10; padding: 7px 9px; border-radius: 50%; background: rgba(255,255,255,0.80); line-height: 1; }
-        .heart:hover { transform: scale(1.12); background: rgba(255,255,255,0.95); }
+        .heart { position: absolute; top: 15px; right: 15px; font-size: 24px; cursor: pointer; opacity: 0.8; transition: all 0.2s; display: none; }
+        .heart:hover { transform: scale(1.1); opacity: 1; }
         .heart.favorited { color: #e74c3c; }
-        .heart.not-favorited { color: rgba(0,0,0,0.35); }
+        .heart.not-favorited { color: white; text-shadow: 0 0 3px rgba(0,0,0,0.5); }
         .admin-mode .heart { display: block; }
     </style>
 </head>
@@ -215,28 +215,77 @@
         }
         
         // --- Favorites ---
+        // Single-favorite API call. Each click changes ONE favorite. The Worker
+        // never sees a full favorites list from us, so a stale tab can no longer
+        // wipe other devices' adds via the legacy POST / reconciliation path.
         async function toggleFavorite(mothId) {
             if (!isAdmin) return;
             
-            const index = favorites.indexOf(mothId);
-            if (index > -1) {
-                favorites.splice(index, 1);
+            const wasFavorited = favorites.includes(mothId);
+            
+            // Optimistic UI update
+            if (wasFavorited) {
+                favorites = favorites.filter(id => id !== mothId);
             } else {
                 favorites.push(mothId);
             }
-            
-            // Re-render through filterMoths so hearts work mid-search
             filterMoths();
             
-            // Save via Worker
+            // Build request body. Send observation data too so the Worker can
+            // insert the observation into D1 if it's missing (defensive).
+            const moth = allMoths.find(m => m.id === mothId);
+            const body = {
+                obs_id: mothId,
+                admin: ADMIN_SECRET,
+                action: wasFavorited ? 'remove' : 'add',
+            };
+            if (moth) {
+                body.observation = {
+                    id: moth.id,
+                    common_name: moth.common_name,
+                    scientific_name: moth.scientific_name,
+                    family: moth.family,
+                    place: moth.place,
+                    observation_url: moth.observation_url,
+                    photo_url: moth.photo_url,
+                    attribution: moth.attribution,
+                    observations_count: moth.observations_count,
+                };
+            }
+            
             try {
-                await fetch(WORKER_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ favorites })
-                });
+                const response = await fetch(
+                    WORKER_URL.replace(/\/$/, '') + '/api/moth/favorites/toggle',
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body),
+                    }
+                );
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                const result = await response.json();
+                if (!result.ok) throw new Error(result.error || 'toggle failed');
+                
+                // Reconcile UI with server's authoritative state. In the
+                // common case (UI matched server going in) this is a no-op.
+                const serverFavorited = result.data.favorited;
+                const inUI = favorites.includes(mothId);
+                if (serverFavorited && !inUI) {
+                    favorites.push(mothId);
+                    filterMoths();
+                } else if (!serverFavorited && inUI) {
+                    favorites = favorites.filter(id => id !== mothId);
+                    filterMoths();
+                }
             } catch (err) {
                 console.error('Failed to save favorite:', err);
+                // Revert optimistic update
+                if (wasFavorited) {
+                    favorites.push(mothId);
+                } else {
+                    favorites = favorites.filter(id => id !== mothId);
+                }
+                filterMoths();
             }
         }
         
