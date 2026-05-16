@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amphibians for Anna</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: Georgia, serif; background-color: #faf9f7; color: #2d2d2d; padding: 40px 20px; }
+        
+        /* Hamburger Menu */
+        .menu-toggle { position: fixed; top: 20px; left: 20px; z-index: 1000; background: white; border: 1px solid #ddd; border-radius: 8px; padding: 10px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .menu-toggle span { display: block; width: 20px; height: 2px; background: #2d2d2d; margin: 4px 0; }
+        .menu { position: fixed; top: 0; left: -250px; width: 250px; height: 100%; background: white; box-shadow: 2px 0 10px rgba(0,0,0,0.1); transition: left 0.3s; z-index: 999; padding: 80px 20px 20px; }
+        .menu.open { left: 0; }
+        .menu a { display: block; padding: 15px 10px; color: #2d2d2d; text-decoration: none; border-bottom: 1px solid #eee; }
+        .menu a:hover { color: #5a8a5e; }
+        .menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); z-index: 998; display: none; }
+        .menu-overlay.open { display: block; }
+        
+        /* Search toggle button */
+        .search-toggle { position: fixed; top: 20px; right: 20px; z-index: 1000; background: white; border: 1px solid #ddd; border-radius: 8px; width: 42px; height: 42px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 18px; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+        .search-toggle:hover { background: #f5f5f5; }
+        
+        /* Search bar — padded to avoid overlapping the fixed buttons */
+        .search-bar { position: fixed; top: 0; left: 0; right: 0; z-index: 997; background: white; border-bottom: 1px solid #eee; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 12px 70px; transform: translateY(-100%); transition: transform 0.3s ease; }
+        .search-bar.open { transform: translateY(0); }
+        .search-wrapper { max-width: 600px; margin: 0 auto; position: relative; }
+        .search-input { width: 100%; padding: 10px 36px 10px 16px; font-size: 1em; font-family: Georgia, serif; border: 1px solid #ddd; border-radius: 8px; background: #faf9f7; outline: none; }
+        .search-input:focus { border-color: #5a8a5e; }
+        .search-clear { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 1.2em; color: #aaa; cursor: pointer; display: none; line-height: 1; }
+        .search-clear:hover { color: #555; }
+        .result-count { text-align: center; color: #888; font-size: 0.9em; margin-bottom: 20px; display: none; }
+        mark { background: #f5e6a3; border-radius: 2px; padding: 0 1px; font-style: normal; }
+        
+        header { text-align: center; margin-bottom: 40px; }
+        h1 { font-weight: normal; font-size: 2em; margin-bottom: 10px; }
+        .subtitle { color: #888; font-size: 1.1em; margin-bottom: 15px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 30px; max-width: 1400px; margin: 0 auto; }
+        .moth-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: transform 0.2s; position: relative; }
+        .moth-card:hover { transform: translateY(-4px); }
+        .moth-card a { display: block; }
+        .moth-card img { width: 100%; height: 250px; object-fit: cover; cursor: pointer; }
+        .moth-info { padding: 20px; text-align: center; }
+        .moth-number { font-size: 12px; color: #888; margin-bottom: 3px; }
+        .moth-name { font-size: 1.3em; margin-bottom: 5px; }
+        .moth-name a { color: #2d2d2d; text-decoration: none; }
+        .moth-name a:hover { color: #5a8a5e; }
+        .scientific-name { font-style: italic; color: #666; margin-bottom: 10px; }
+        .family { font-size: 0.9em; color: #555; margin-bottom: 5px; }
+        .location { font-size: 0.9em; color: #888; margin-bottom: 5px; }
+        .timestamp { font-size: 0.8em; color: #aaa; margin-bottom: 6px; }
+        .loading { text-align: center; padding: 60px; color: #888; }
+        a { color: inherit; text-decoration: none; }
+        
+        /* Heart icon */
+        .heart { position: absolute; top: 15px; right: 15px; font-size: 24px; cursor: pointer; opacity: 0.8; transition: all 0.2s; display: none; }
+        .heart:hover { transform: scale(1.1); opacity: 1; }
+        .heart.favorited { color: #e74c3c; }
+        .heart.not-favorited { color: white; text-shadow: 0 0 3px rgba(0,0,0,0.5); }
+        .admin-mode .heart { display: block; }
+    
+        .menu-section { padding: 10px 20px 4px; font-weight: bold; font-size: 0.95em; color: #555; }
+</style>
+</head>
+<body>
+    <div class="menu-toggle" onclick="toggleMenu()">
+        <span></span><span></span><span></span>
+    </div>
+    <div class="menu-overlay" onclick="toggleMenu()"></div>
+    <nav class="menu">
+        <div class="menu-section">🐸 Amphibians</div>
+        <a href="/amphibians/">&nbsp;&nbsp;Collection</a>
+        <a href="/amphibians/random/">&nbsp;&nbsp;Random</a>
+        <a href="/amphibians/best/">&nbsp;&nbsp;Best</a>
+        <a href="/amphibians/quiz/">&nbsp;&nbsp;Quiz</a>
+        <div class="menu-section">🦋 Moths</div>
+        <a href="/">&nbsp;&nbsp;Collection</a>
+        <a href="/random">&nbsp;&nbsp;Random</a>
+        <a href="/best">&nbsp;&nbsp;Best</a>
+        <a href="/quiz">&nbsp;&nbsp;Quiz</a>
+        <div class="menu-section">🐌 Nudibranchs</div>
+        <a href="/nudibranchs/">&nbsp;&nbsp;Collection</a>
+        <a href="/nudibranchs/random/">&nbsp;&nbsp;Random</a>
+        <a href="/nudibranchs/best/">&nbsp;&nbsp;Best</a>
+        <a href="/nudibranchs/quiz/">&nbsp;&nbsp;Quiz</a>
+    </nav>
+    
+    <button class="search-toggle" onclick="toggleSearch()" title="Search moths">🔍</button>
+    <div class="search-bar" id="searchBar">
+        <div class="search-wrapper">
+            <input class="search-input" id="searchInput" type="text" placeholder="Search by name, family, location…" />
+            <button class="search-clear" id="searchClear" onclick="clearSearch()" title="Clear search">✕</button>
+        </div>
+    </div>
+    
+    <header>
+        <h1>🐸 Amphibians for Anna 🐸</h1>
+        <p class="subtitle">A new moth (or caterpillar) every hour.</p>
+    </header>
+    <div id="resultCount" class="result-count"></div>
+    <div id="moths" class="grid">
+        <div class="loading">Loading amphibians...</div>
+    </div>
+    <script>
+        const WORKER_URL = 'https://moth-favorites.masondandrus.workers.dev/';
+        const ADMIN_SECRET = 'mothsrock';
+        
+        let isAdmin = false;
+        let favorites = [];
+        let allMoths = [];
+        let debounceTimer = null;
+        
+        function toggleMenu() {
+            document.querySelector('.menu').classList.toggle('open');
+            document.querySelector('.menu-overlay').classList.toggle('open');
+        }
+        
+        function checkAdmin() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('admin') === ADMIN_SECRET) {
+                isAdmin = true;
+                localStorage.setItem('mothAdmin', 'true');
+            } else if (localStorage.getItem('mothAdmin') === 'true') {
+                isAdmin = true;
+            }
+            if (isAdmin) {
+                document.body.classList.add('admin-mode');
+            }
+        }
+        
+        function formatDate(isoString) {
+            if (!isoString) return '';
+            const date = new Date(isoString);
+            return date.toLocaleDateString('en-US', { 
+                timeZone: 'America/Los_Angeles',
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            });
+        }
+        
+        // --- Search ---
+        function toggleSearch() {
+            const bar = document.getElementById('searchBar');
+            const input = document.getElementById('searchInput');
+            const isOpen = bar.classList.toggle('open');
+            if (isOpen) {
+                input.focus();
+            } else {
+                clearSearch();
+            }
+        }
+        
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('searchClear').style.display = 'none';
+            document.getElementById('resultCount').style.display = 'none';
+            renderMoths(allMoths);
+        }
+        
+        function highlightText(text, query) {
+            if (!query || !text) return text || '';
+            const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            return text.replace(new RegExp(`(${escaped})`, 'gi'), '<mark>$1</mark>');
+        }
+        
+        function filterMoths() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                const query = document.getElementById('searchInput').value.trim().toLowerCase();
+                const clearBtn = document.getElementById('searchClear');
+                const countEl = document.getElementById('resultCount');
+                
+                clearBtn.style.display = query ? 'block' : 'none';
+                
+                if (!query) {
+                    countEl.style.display = 'none';
+                    renderMoths(allMoths);
+                    return;
+                }
+                
+                const filtered = allMoths.filter(m => {
+                    const fields = [m.common_name, m.scientific_name, m.family, m.place].map(f => (f || '').toLowerCase());
+                    return fields.some(f => f.includes(query));
+                });
+                
+                countEl.textContent = `Showing ${filtered.length} of ${allMoths.length} moths`;
+                countEl.style.display = 'block';
+                renderMoths(filtered, query);
+            }, 250);
+        }
+        
+        // --- Incremental rendering ---
+        // The full collection can be thousands of cards. Building all of them
+        // in one innerHTML assignment freezes the main thread ("Page
+        // Unresponsive"). Instead we render in batches: an initial batch on
+        // load/search, then more as the user scrolls a sentinel into view via
+        // IntersectionObserver (no scroll-event thrash). Scales to any size.
+        const RENDER_BATCH = 60;
+        let renderList = [];      // the moths to display (all or filtered)
+        let renderQuery = '';     // active search query (for highlighting)
+        let renderCursor = 0;     // how many of renderList are painted
+        let renderObserver = null;
+
+        function cardHTML(moth, query) {
+            const isFav = favorites.includes(moth.id);
+            const hasCommon = !!moth.common_name;
+            // Title: common name if present, else italicized scientific name.
+            // Both branches still get search-term highlighting.
+            const rawTitle = hasCommon ? moth.common_name : (moth.scientific_name || 'Unknown species');
+            const titleHtml = query ? highlightText(rawTitle, query) : rawTitle;
+            const name = hasCommon ? titleHtml : `<em>${titleHtml}</em>`;
+            const sci = query ? highlightText(moth.scientific_name, query) : (moth.scientific_name || '');
+            const fam = moth.family ? (query ? highlightText(moth.family, query) : moth.family) : '';
+            const loc = query ? highlightText(moth.place || 'Unknown location', query) : (moth.place || 'Unknown location');
+            const seq = moth.sequence_number != null ? moth.sequence_number : '';
+            return `
+                <div class="moth-card">
+                    <span class="heart ${isFav ? 'favorited' : 'not-favorited'}" data-moth-id="${moth.id}" onclick="toggleFavorite(${moth.id})">${isFav ? '♥' : '♡'}</span>
+                    <a href="${moth.observation_url}" target="_blank">
+                        <img src="${moth.photo_url}" alt="${moth.common_name || moth.scientific_name || 'Amphibian photo'}" loading="lazy">
+                    </a>
+                    <div class="moth-info">
+                        <div class="moth-number">Amphibian #${seq}</div>
+                        <div class="timestamp">${formatDate(moth.sent_at)}</div>
+                        <div class="moth-name"><a href="${moth.observation_url}" target="_blank">${name}</a></div>
+                        <div class="scientific-name">${hasCommon ? sci : ''}</div>
+                        ${fam ? `<div class="family">Family: ${fam}</div>` : ''}
+                        <div class="location">📍 ${loc}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderNextBatch() {
+            const container = document.getElementById('moths');
+            const sentinel = document.getElementById('scrollSentinel');
+            const slice = renderList.slice(renderCursor, renderCursor + RENDER_BATCH);
+            if (slice.length) {
+                const html = slice.map(m => cardHTML(m, renderQuery)).join('');
+                if (sentinel) {
+                    sentinel.insertAdjacentHTML('beforebegin', html);
+                } else {
+                    container.insertAdjacentHTML('beforeend', html);
+                }
+                renderCursor += slice.length;
+            }
+            // All painted — stop observing and drop the sentinel.
+            if (renderCursor >= renderList.length) {
+                if (renderObserver) { renderObserver.disconnect(); renderObserver = null; }
+                if (sentinel) sentinel.remove();
+            }
+        }
+
+        function renderMoths(moths, query = '') {
+            const container = document.getElementById('moths');
+            // Tear down any previous observer before re-rendering.
+            if (renderObserver) { renderObserver.disconnect(); renderObserver = null; }
+
+            if (!moths.length) {
+                container.innerHTML = query
+                    ? '<div class="loading">No amphibians match your search.</div>'
+                    : '<div class="loading">No amphibians yet. Check back soon!</div>';
+                return;
+            }
+
+            renderList = moths;
+            renderQuery = query;
+            renderCursor = 0;
+
+            // Fresh container with a sentinel the observer watches.
+            container.innerHTML = '<div id="scrollSentinel" aria-hidden="true"></div>';
+            renderNextBatch();
+
+            // If everything fit in the first batch the sentinel is already
+            // gone; otherwise observe it to stream subsequent batches.
+            const sentinel = document.getElementById('scrollSentinel');
+            if (sentinel && 'IntersectionObserver' in window) {
+                renderObserver = new IntersectionObserver((entries) => {
+                    if (entries.some(e => e.isIntersecting)) renderNextBatch();
+                }, { rootMargin: '600px 0px' });
+                renderObserver.observe(sentinel);
+            } else if (sentinel) {
+                // No IntersectionObserver support: fall back to rendering all
+                // remaining in chunks via rAF so the thread stays responsive.
+                const pump = () => {
+                    renderNextBatch();
+                    if (renderCursor < renderList.length) requestAnimationFrame(pump);
+                };
+                requestAnimationFrame(pump);
+            }
+        }
+        
+        // --- Favorites ---
+        // Single-favorite API call. Each click changes ONE favorite. The Worker
+        // Update a single heart in place (class + glyph) without re-rendering
+        // the grid. Re-rendering would reset the incremental cursor and snap
+        // the scroll position back to the top on every favorite toggle.
+        function paintHeart(mothId) {
+            const fav = favorites.includes(mothId);
+            document.querySelectorAll(`.heart[data-moth-id="${mothId}"]`).forEach(el => {
+                el.classList.toggle('favorited', fav);
+                el.classList.toggle('not-favorited', !fav);
+                el.textContent = fav ? '♥' : '♡';
+            });
+        }
+
+        // never sees a full favorites list from us, so a stale tab can no longer
+        // wipe other devices' adds via the legacy POST / reconciliation path.
+        async function toggleFavorite(mothId) {
+            if (!isAdmin) return;
+            
+            const wasFavorited = favorites.includes(mothId);
+            
+            // Optimistic UI update (in place — no grid rebuild)
+            if (wasFavorited) {
+                favorites = favorites.filter(id => id !== mothId);
+            } else {
+                favorites.push(mothId);
+            }
+            paintHeart(mothId);
+            
+            // Build request body. Send observation data too so the Worker can
+            // insert the observation into D1 if it's missing (defensive).
+            const moth = allMoths.find(m => m.id === mothId);
+            const body = {
+                obs_id: mothId,
+                admin: ADMIN_SECRET,
+                action: wasFavorited ? 'remove' : 'add',
+            };
+            if (moth) {
+                body.observation = {
+                    id: moth.id,
+                    common_name: moth.common_name,
+                    scientific_name: moth.scientific_name,
+                    family: moth.family,
+                    place: moth.place,
+                    observation_url: moth.observation_url,
+                    photo_url: moth.photo_url,
+                    attribution: moth.attribution,
+                    observations_count: moth.observations_count,
+                };
+            }
+            
+            try {
+                const response = await fetch(
+                    WORKER_URL.replace(/\/$/, '') + '/api/amphibian/favorites/toggle',
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body),
+                    }
+                );
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                const result = await response.json();
+                if (!result.ok) throw new Error(result.error || 'toggle failed');
+                
+                // Reconcile UI with server's authoritative state. In the
+                // common case (UI matched server going in) this is a no-op.
+                const serverFavorited = result.data.favorited;
+                const inUI = favorites.includes(mothId);
+                if (serverFavorited && !inUI) {
+                    favorites.push(mothId);
+                    paintHeart(mothId);
+                } else if (!serverFavorited && inUI) {
+                    favorites = favorites.filter(id => id !== mothId);
+                    paintHeart(mothId);
+                }
+            } catch (err) {
+                console.error('Failed to save favorite:', err);
+                // Revert optimistic update
+                if (wasFavorited) {
+                    favorites.push(mothId);
+                } else {
+                    favorites = favorites.filter(id => id !== mothId);
+                }
+                paintHeart(mothId);
+            }
+        }
+        
+        // --- Load ---
+        // Reads from the D1-backed Worker API instead of the gist. The Worker
+        // returns observations ordered by sequence_number ASC (oldest first),
+        // identical to the old gist file order, so the existing reverse() for
+        // newest-first display stays correct. No truncation/raw_url handling
+        // needed — D1 has no 300KB file-size limit.
+        async function loadMoths() {
+            try {
+                const response = await fetch(
+                    WORKER_URL.replace(/\/$/, '') + '/api/amphibian/all'
+                );
+                if (!response.ok) throw new Error(`API fetch failed: ${response.status}`);
+                const result = await response.json();
+                if (!result.ok) throw new Error(result.error || 'API returned not ok');
+
+                const moths = result.data.observations || [];
+                favorites = result.data.favorites || [];
+
+                allMoths = [...moths].reverse();
+                renderMoths(allMoths);
+            } catch (err) {
+                console.error('Failed to load moths:', err);
+                document.getElementById('moths').innerHTML = '<div class="loading">Error loading amphibians</div>';
+            }
+        }
+        
+        // Wire up search input
+        document.getElementById('searchInput').addEventListener('input', filterMoths);
+        document.getElementById('searchInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') toggleSearch();
+        });
+        
+        checkAdmin();
+        loadMoths();
+    </script>
+</body>
+</html>
