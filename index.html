@@ -90,7 +90,6 @@
         <div class="loading">Loading moths...</div>
     </div>
     <script>
-        const GIST_ID = '13f60f151dac089590b88b9a55c4140e';
         const WORKER_URL = 'https://moth-favorites.masondandrus.workers.dev/';
         const ADMIN_SECRET = 'mothsrock';
         
@@ -192,21 +191,27 @@
             }
             container.innerHTML = moths.map(moth => {
                 const isFav = favorites.includes(moth.id);
-                const name = query ? highlightText(moth.common_name, query) : moth.common_name;
-                const sci = query ? highlightText(moth.scientific_name, query) : moth.scientific_name;
+                const hasCommon = !!moth.common_name;
+                // Title: common name if present, else italicized scientific name.
+                // Both branches still get search-term highlighting.
+                const rawTitle = hasCommon ? moth.common_name : (moth.scientific_name || 'Unknown species');
+                const titleHtml = query ? highlightText(rawTitle, query) : rawTitle;
+                const name = hasCommon ? titleHtml : `<em>${titleHtml}</em>`;
+                const sci = query ? highlightText(moth.scientific_name, query) : (moth.scientific_name || '');
                 const fam = moth.family ? (query ? highlightText(moth.family, query) : moth.family) : '';
                 const loc = query ? highlightText(moth.place || 'Unknown location', query) : (moth.place || 'Unknown location');
+                const seq = moth.sequence_number != null ? moth.sequence_number : '';
                 return `
                 <div class="moth-card">
                     <span class="heart ${isFav ? 'favorited' : 'not-favorited'}" data-moth-id="${moth.id}" onclick="toggleFavorite(${moth.id})">${isFav ? '♥' : '♡'}</span>
                     <a href="${moth.observation_url}" target="_blank">
-                        <img src="${moth.photo_url}" alt="${moth.common_name || 'Moth photo'}" loading="lazy">
+                        <img src="${moth.photo_url}" alt="${moth.common_name || moth.scientific_name || 'Moth photo'}" loading="lazy">
                     </a>
                     <div class="moth-info">
-                        <div class="moth-number">Moth #${moth.moth_number || ''}</div>
+                        <div class="moth-number">Moth #${seq}</div>
                         <div class="timestamp">${formatDate(moth.sent_at)}</div>
                         <div class="moth-name"><a href="${moth.observation_url}" target="_blank">${name}</a></div>
-                        <div class="scientific-name">${sci}</div>
+                        <div class="scientific-name">${hasCommon ? sci : ''}</div>
                         ${fam ? `<div class="family">Family: ${fam}</div>` : ''}
                         <div class="location">📍 ${loc}</div>
                     </div>
@@ -290,28 +295,23 @@
         }
         
         // --- Load ---
+        // Reads from the D1-backed Worker API instead of the gist. The Worker
+        // returns observations ordered by sequence_number ASC (oldest first),
+        // identical to the old gist file order, so the existing reverse() for
+        // newest-first display stays correct. No truncation/raw_url handling
+        // needed — D1 has no 300KB file-size limit.
         async function loadMoths() {
             try {
-                const response = await fetch(`https://api.github.com/gists/${GIST_ID}`);
-                if (!response.ok) throw new Error(`Gist fetch failed: ${response.status}`);
-                const gist = await response.json();
-                
-                // Load favorites from same response
-                if (gist.files['favorites.json']) {
-                    favorites = JSON.parse(gist.files['favorites.json'].content);
-                }
-                
-                // Check if file is truncated
-                const fileInfo = gist.files['sent_moths.json'];
-                let mothsData;
-                if (fileInfo.truncated) {
-                    const rawResponse = await fetch(fileInfo.raw_url);
-                    mothsData = await rawResponse.text();
-                } else {
-                    mothsData = fileInfo.content;
-                }
-                
-                const moths = JSON.parse(mothsData);
+                const response = await fetch(
+                    WORKER_URL.replace(/\/$/, '') + '/api/moth/all'
+                );
+                if (!response.ok) throw new Error(`API fetch failed: ${response.status}`);
+                const result = await response.json();
+                if (!result.ok) throw new Error(result.error || 'API returned not ok');
+
+                const moths = result.data.observations || [];
+                favorites = result.data.favorites || [];
+
                 allMoths = [...moths].reverse();
                 renderMoths(allMoths);
             } catch (err) {
