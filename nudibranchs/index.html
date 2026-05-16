@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nudibranchs for Anna</title>
+    <title>Sea Slugs for Anna</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: Georgia, serif; background-color: #faf9f7; color: #2d2d2d; padding: 40px 20px; }
@@ -11,7 +11,7 @@
         /* Hamburger Menu */
         .menu-toggle { position: fixed; top: 20px; left: 20px; z-index: 1000; background: white; border: 1px solid #ddd; border-radius: 8px; padding: 10px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         .menu-toggle span { display: block; width: 20px; height: 2px; background: #2d2d2d; margin: 4px 0; }
-        .menu { position: fixed; top: 0; left: -250px; width: 250px; height: 100%; background: white; box-shadow: 2px 0 10px rgba(0,0,0,0.1); transition: left 0.3s; z-index: 999; padding: 80px 20px 20px; }
+        .menu { position: fixed; top: 0; left: -250px; width: 250px; height: 100%; background: white; box-shadow: 2px 0 10px rgba(0,0,0,0.1); transition: left 0.3s; z-index: 999; padding: 80px 20px 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
         .menu.open { left: 0; }
         .menu a { display: block; padding: 15px 10px; color: #2d2d2d; text-decoration: none; border-bottom: 1px solid #eee; }
         .menu a:hover { color: #c45a7a; }
@@ -69,7 +69,7 @@
     </div>
     <div class="menu-overlay" onclick="toggleMenu()"></div>
     <nav class="menu">
-        <div class="menu-section">🐌 Nudibranchs</div>
+        <div class="menu-section">🐌 Sea Slugs</div>
         <a href="/nudibranchs/">&nbsp;&nbsp;Collection</a>
         <a href="/nudibranchs/random/">&nbsp;&nbsp;Random</a>
         <a href="/nudibranchs/best/">&nbsp;&nbsp;Best</a>
@@ -95,12 +95,12 @@
     </div>
     
     <header>
-        <h1>🐌 Nudibranchs for Anna 🐌</h1>
-        <p class="subtitle">A new nudibranch every hour.</p>
+        <h1>🐌 Sea Slugs for Anna 🐌</h1>
+        <p class="subtitle">A new sea slug every hour.</p>
     </header>
     <div id="resultCount" class="result-count"></div>
     <div id="moths" class="grid">
-        <div class="loading">Loading nudibranchs...</div>
+        <div class="loading">Loading sea slugs...</div>
     </div>
     <script>
         const WORKER_URL = 'https://moth-favorites.masondandrus.workers.dev/';
@@ -222,10 +222,10 @@
                 <div class="moth-card">
                     <span class="heart ${isFav ? 'favorited' : 'not-favorited'}" data-moth-id="${moth.id}" onclick="toggleFavorite(${moth.id})">${isFav ? '♥' : '♡'}</span>
                     <a href="${moth.observation_url}" target="_blank">
-                        <img src="${moth.photo_url}" alt="${moth.common_name || moth.scientific_name || 'Nudibranch photo'}" loading="lazy">
+                        <img src="${moth.photo_url}" alt="${moth.common_name || moth.scientific_name || 'Sea Slug photo'}" loading="lazy">
                     </a>
                     <div class="moth-info">
-                        <div class="moth-number">Nudibranch #${seq}</div>
+                        <div class="moth-number">Sea Slug #${seq}</div>
                         <div class="timestamp">${formatDate(moth.sent_at)}</div>
                         <div class="moth-name"><a href="${moth.observation_url}" target="_blank">${name}</a></div>
                         <div class="scientific-name">${hasCommon ? sci : ''}</div>
@@ -263,8 +263,8 @@
 
             if (!moths.length) {
                 container.innerHTML = query
-                    ? '<div class="loading">No nudibranchs match your search.</div>'
-                    : '<div class="loading">No nudibranchs yet. Check back soon!</div>';
+                    ? '<div class="loading">No sea slugs match your search.</div>'
+                    : '<div class="loading">No sea slugs yet. Check back soon!</div>';
                 return;
             }
 
@@ -404,7 +404,7 @@
                 renderMoths(allMoths);
             } catch (err) {
                 console.error('Failed to load moths:', err);
-                document.getElementById('moths').innerHTML = '<div class="loading">Error loading nudibranchs</div>';
+                document.getElementById('moths').innerHTML = '<div class="loading">Error loading sea slugs</div>';
             }
         }
         
