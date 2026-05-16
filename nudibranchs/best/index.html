@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nudibranch Quiz</title>
+    <title>Best Nudibranchs</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: Georgia, serif; background-color: #faf9f7; color: #2d2d2d; padding: 40px 20px 100px 20px; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+        body { font-family: Georgia, serif; background-color: #faf9f7; color: #2d2d2d; padding: 40px 20px; }
         
         /* Hamburger Menu */
         .menu-toggle { position: fixed; top: 20px; left: 20px; z-index: 1000; background: white; border: 1px solid #ddd; border-radius: 8px; padding: 10px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
@@ -18,43 +18,45 @@
         .menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); z-index: 998; display: none; }
         .menu-overlay.open { display: block; }
         
-        header { text-align: center; margin-bottom: 30px; }
+        /* Search toggle button */
+        .search-toggle { position: fixed; top: 20px; right: 20px; z-index: 1000; background: white; border: 1px solid #ddd; border-radius: 8px; width: 42px; height: 42px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 18px; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+        .search-toggle:hover { background: #f5f5f5; }
+        
+        /* Search bar */
+        .search-bar { position: fixed; top: 0; left: 0; right: 0; z-index: 997; background: white; border-bottom: 1px solid #eee; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 12px 70px; transform: translateY(-100%); transition: transform 0.3s ease; }
+        .search-bar.open { transform: translateY(0); }
+        .search-wrapper { max-width: 600px; margin: 0 auto; position: relative; }
+        .search-input { width: 100%; padding: 10px 36px 10px 16px; font-size: 1em; font-family: Georgia, serif; border: 1px solid #ddd; border-radius: 8px; background: #faf9f7; outline: none; }
+        .search-input:focus { border-color: #c45a7a; }
+        .search-clear { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 1.2em; color: #aaa; cursor: pointer; display: none; line-height: 1; }
+        .search-clear:hover { color: #555; }
+        .result-count { text-align: center; color: #888; font-size: 0.9em; margin-bottom: 20px; display: none; }
+        mark { background: #f5e6a3; border-radius: 2px; padding: 0 1px; font-style: normal; }
+        
+        header { text-align: center; margin-bottom: 40px; }
         h1 { font-weight: normal; font-size: 2em; margin-bottom: 10px; }
-        .subtitle { color: #888; font-size: 1em; margin-bottom: 10px; }
-        .score { font-size: 1.2em; color: #c45a7a; margin-bottom: 20px; }
-        
-        .quiz-container { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); max-width: 500px; width: 100%; }
-        .quiz-container img { width: 100%; height: 300px; object-fit: cover; }
-        .quiz-content { padding: 20px; text-align: center; }
-        .question { font-size: 1.2em; margin-bottom: 20px; }
-        
-        .photo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; }
-        .photo-option { cursor: pointer; border-radius: 8px; overflow: hidden; border: 3px solid transparent; transition: all 0.2s; }
-        .photo-option:hover { border-color: #c45a7a; }
-        .photo-option img { width: 100%; height: 150px; object-fit: cover; }
-        .photo-option.correct { border-color: #4CAF50; }
-        .photo-option.wrong { border-color: #e74c3c; }
-        .photo-option.disabled { pointer-events: none; opacity: 0.6; }
-        .photo-option.correct.disabled { opacity: 1; }
-        
-        .options { display: flex; flex-direction: column; gap: 10px; }
-        .option-btn { background: #f5f5f5; border: 2px solid #ddd; padding: 12px 20px; font-size: 1em; font-family: Georgia, serif; border-radius: 8px; cursor: pointer; transition: all 0.2s; text-align: left; }
-        .option-btn:hover { background: #eee; border-color: #c45a7a; }
-        .option-btn.correct { background: #4CAF50; color: white; border-color: #4CAF50; }
-        .option-btn.wrong { background: #e74c3c; color: white; border-color: #e74c3c; }
-        .option-btn.disabled { pointer-events: none; }
-        .option-btn.show-correct { background: #4CAF50; color: white; border-color: #4CAF50; }
-        
-        .feedback { margin-top: 20px; font-size: 1.1em; padding: 15px; border-radius: 8px; }
-        .feedback.correct { background: #e8f5e9; color: #2e7d32; }
-        .feedback.wrong { background: #ffebee; color: #c62828; }
-        
-        .next-btn { background: #c45a7a; color: white; border: none; padding: 12px 40px; font-size: 1em; font-family: Georgia, serif; border-radius: 6px; cursor: pointer; transition: background 0.2s; margin-top: 20px; display: none; }
-        .next-btn:hover { background: #5a5f4e; }
-        .next-btn.show { display: inline-block; }
-        
+        .subtitle { color: #888; font-size: 1.1em; margin-bottom: 15px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 30px; max-width: 1400px; margin: 0 auto; }
+        .moth-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: transform 0.2s; position: relative; }
+        .moth-card:hover { transform: translateY(-4px); }
+        .moth-card a { display: block; }
+        .moth-card img { width: 100%; height: 250px; object-fit: cover; cursor: pointer; }
+        .moth-info { padding: 20px; text-align: center; }
+        .moth-number { font-size: 12px; color: #888; margin-bottom: 3px; }
+        .moth-name { font-size: 1.3em; margin-bottom: 5px; }
+        .moth-name a { color: #2d2d2d; text-decoration: none; }
+        .moth-name a:hover { color: #c45a7a; }
+        .scientific-name { font-style: italic; color: #666; margin-bottom: 10px; }
+        .family { font-size: 0.9em; color: #555; margin-bottom: 5px; }
+        .location { font-size: 0.9em; color: #888; margin-bottom: 5px; }
+        .timestamp { font-size: 0.8em; color: #aaa; margin-bottom: 6px; }
         .loading { text-align: center; padding: 60px; color: #888; }
-        a { color: #c45a7a; }
+        a { color: inherit; text-decoration: none; }
+        
+        /* Heart icon */
+        .heart { position: absolute; top: 15px; right: 15px; font-size: 24px; cursor: pointer; opacity: 0.8; transition: all 0.2s; display: none; color: #e74c3c; }
+        .heart:hover { transform: scale(1.1); opacity: 1; }
+        .admin-mode .heart { display: block; }
     
         .menu-section { padding: 10px 20px 4px; font-weight: bold; font-size: 0.95em; color: #555; }
 </style>
@@ -82,255 +84,274 @@
         <a href="/amphibians/quiz/">&nbsp;&nbsp;Quiz</a>
     </nav>
     
-    <header>
-        <h1>📝 Nudibranch Quiz</h1>
-        <p class="subtitle">Test your nudibranch knowledge!</p>
-        <div class="score">Score: <span id="correct">0</span> / <span id="total">0</span></div>
-    </header>
-    
-    <div id="quiz" class="quiz-container">
-        <div class="loading">Loading quiz...</div>
+    <button class="search-toggle" onclick="toggleSearch()" title="Search moths">🔍</button>
+    <div class="search-bar" id="searchBar">
+        <div class="search-wrapper">
+            <input class="search-input" id="searchInput" type="text" placeholder="Search by name, family, location…" />
+            <button class="search-clear" id="searchClear" onclick="clearSearch()" title="Clear search">✕</button>
+        </div>
     </div>
     
+    <header>
+        <h1>⭐ Best Nudibranchs ⭐</h1>
+        <p class="subtitle">Anna's favorite nudibranchs.</p>
+    </header>
+    <div id="resultCount" class="result-count"></div>
+    <div id="moths" class="grid">
+        <div class="loading">Loading best nudibranchs...</div>
+    </div>
     <script>
         const WORKER_URL = 'https://moth-favorites.masondandrus.workers.dev/';
+        const ADMIN_SECRET = 'mothsrock';
         
+        let isAdmin = false;
         let favorites = [];
-        let favoriteMoths = [];
-        let correctCount = 0;
-        let totalCount = 0;
-        let currentCorrectAnswer = null;
-        let answered = false;
+        let allMoths = [];
+        let debounceTimer = null;
         
         function toggleMenu() {
             document.querySelector('.menu').classList.toggle('open');
             document.querySelector('.menu-overlay').classList.toggle('open');
         }
         
-        function shuffle(array) {
-            const arr = [...array];
-            for (let i = arr.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [arr[i], arr[j]] = [arr[j], arr[i]];
+        function checkAdmin() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('admin') === ADMIN_SECRET) {
+                isAdmin = true;
+                localStorage.setItem('mothAdmin', 'true');
+            } else if (localStorage.getItem('mothAdmin') === 'true') {
+                isAdmin = true;
             }
-            return arr;
+            if (isAdmin) {
+                document.body.classList.add('admin-mode');
+            }
         }
         
-        function getRandomItems(array, count, exclude = null) {
-            const filtered = exclude ? array.filter(item => item.id !== exclude.id) : array;
-            return shuffle(filtered).slice(0, count);
+        function formatDate(isoString) {
+            if (!isoString) return '';
+            const date = new Date(isoString);
+            return date.toLocaleDateString('en-US', { 
+                timeZone: 'America/Los_Angeles',
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            });
         }
         
-        function updateScore() {
-            document.getElementById('correct').textContent = correctCount;
-            document.getElementById('total').textContent = totalCount;
-        }
-        
-        function showFeedback(isCorrect, correctAnswer) {
-            const container = document.getElementById('quiz');
-            const feedbackDiv = document.createElement('div');
-            feedbackDiv.className = `feedback ${isCorrect ? 'correct' : 'wrong'}`;
-            
-            if (isCorrect) {
-                feedbackDiv.textContent = '✓ Correct!';
+        // --- Search ---
+        function toggleSearch() {
+            const bar = document.getElementById('searchBar');
+            const input = document.getElementById('searchInput');
+            const isOpen = bar.classList.toggle('open');
+            if (isOpen) {
+                input.focus();
             } else {
-                feedbackDiv.textContent = `✗ Wrong! The answer was: ${correctAnswer}`;
+                clearSearch();
             }
-            
-            container.querySelector('.quiz-content').appendChild(feedbackDiv);
-            container.querySelector('.next-btn').classList.add('show');
         }
         
-        function handleAnswer(selected, correct, correctDisplay) {
-            if (answered) return;
-            answered = true;
-            totalCount++;
-            
-            const isCorrect = selected === correct;
-            if (isCorrect) correctCount++;
-            updateScore();
-            
-            showFeedback(isCorrect, correctDisplay);
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('searchClear').style.display = 'none';
+            document.getElementById('resultCount').style.display = 'none';
+            renderMoths(allMoths);
         }
         
-        function generateQuestion(attempt = 0) {
-            answered = false;
-            const container = document.getElementById('quiz');
-
-            if (favoriteMoths.length < 4) {
-                container.innerHTML = '<div class="loading">Need at least 4 favorites to play the quiz!</div>';
-                return;
-            }
-
-            // Bail out if we've retried too many times (e.g. favorites lack the
-            // variety needed to build any question type). Prevents an unbounded
-            // setTimeout recursion.
-            if (attempt >= 8) {
-                container.innerHTML = '<div class="loading">Couldn\'t generate a question — try favoriting more variety!</div>';
-                return;
-            }
-
-            // Build the eligible question-type list. A type is only eligible if
-            // at least 4 favorites carry the data that type needs:
-            //   - family: needs m.family
-            //   - name / photo: need m.common_name (nudibranchs/amphibians often lack it)
-            //   - scientific: always available (every observation has a scientific name)
-            let questionTypes = ['name', 'family', 'scientific', 'photo'];
-            const mothsWithFamily = favoriteMoths.filter(m => m.family);
-            if (mothsWithFamily.length < 4) {
-                questionTypes = questionTypes.filter(t => t !== 'family');
-            }
-            const mothsWithCommon = favoriteMoths.filter(m => m.common_name);
-            if (mothsWithCommon.length < 4) {
-                questionTypes = questionTypes.filter(t => t !== 'name' && t !== 'photo');
-            }
-            if (!questionTypes.length) {
-                container.innerHTML = '<div class="loading">Couldn\'t generate a question — try favoriting more variety!</div>';
-                return;
-            }
-            const questionType = questionTypes[Math.floor(Math.random() * questionTypes.length)];
-
-            // Choose the pool based on question type. name/photo require a
-            // common name; family requires a family; scientific uses all.
-            let pool;
-            if (questionType === 'family') {
-                pool = mothsWithFamily;
-            } else if (questionType === 'name' || questionType === 'photo') {
-                pool = mothsWithCommon;
-            } else {
-                pool = favoriteMoths;
-            }
-
-            // Pick correct moth
-            const correctMoth = pool[Math.floor(Math.random() * pool.length)];
-
-            // Get wrong options, ensuring unique display text. Coerce to '' so
-            // a malformed/null field can never throw on a later .replace().
-            const getDisplayText = (m) => {
-                if (questionType === 'name') return m.common_name || '';
-                if (questionType === 'family') return m.family || '';
-                if (questionType === 'scientific') return m.scientific_name || '';
-                return m.id; // photo type — uniqueness by ID
-            };
-
-            const correctText = getDisplayText(correctMoth);
-            const usedTexts = new Set([correctText]);
-            const wrongMoths = [];
-            const shuffledPool = shuffle(pool.filter(m => m.id !== correctMoth.id));
-
-            for (const m of shuffledPool) {
-                const text = getDisplayText(m);
-                if (!usedTexts.has(text)) {
-                    usedTexts.add(text);
-                    wrongMoths.push(m);
+        function highlightText(text, query) {
+            if (!query || !text) return text || '';
+            const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            return text.replace(new RegExp(`(${escaped})`, 'gi'), '<mark>$1</mark>');
+        }
+        
+        function filterMoths() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                const query = document.getElementById('searchInput').value.trim().toLowerCase();
+                const clearBtn = document.getElementById('searchClear');
+                const countEl = document.getElementById('resultCount');
+                
+                clearBtn.style.display = query ? 'block' : 'none';
+                
+                if (!query) {
+                    countEl.style.display = 'none';
+                    renderMoths(allMoths);
+                    return;
                 }
-                if (wrongMoths.length === 3) break;
-            }
+                
+                const filtered = allMoths.filter(m => {
+                    const fields = [m.common_name, m.scientific_name, m.family, m.place].map(f => (f || '').toLowerCase());
+                    return fields.some(f => f.includes(query));
+                });
+                
+                countEl.textContent = `Showing ${filtered.length} of ${allMoths.length} favorites`;
+                countEl.style.display = 'block';
+                renderMoths(filtered, query);
+            }, 250);
+        }
+        
+        // --- Incremental rendering (see index.html for rationale) ---
+        const RENDER_BATCH = 60;
+        let renderList = [];
+        let renderQuery = '';
+        let renderCursor = 0;
+        let renderObserver = null;
 
-            if (wrongMoths.length < 3) {
-                // Not enough unique options for this type; retry with a bounded
-                // counter so we can't loop forever.
-                container.innerHTML = '<div class="loading">Loading question...</div>';
-                setTimeout(() => generateQuestion(attempt + 1), 0);
-                return;
-            }
-            
-            if (questionType === 'photo') {
-                // Show name, pick from 4 photos. (pool guarantees common_name
-                // is present here, but coerce defensively before .replace().)
-                const allOptions = shuffle([correctMoth, ...wrongMoths]);
-                const correctCommon = correctMoth.common_name || '';
-                
-                container.innerHTML = `
-                    <div class="quiz-content">
-                        <div class="question">Which photo is the <strong>${correctCommon}</strong>?</div>
-                        <div class="photo-grid">
-                            ${allOptions.map(moth => `
-                                <div class="photo-option" data-moth-id="${moth.id}" onclick="handlePhotoAnswer(${moth.id}, ${correctMoth.id}, '${correctCommon.replace(/'/g, "\\'")}', this)">
-                                    <img src="${moth.photo_url}" alt="Nudibranch option">
-                                </div>
-                            `).join('')}
-                        </div>
+        function cardHTML(moth, query) {
+            const hasCommon = !!moth.common_name;
+            const rawTitle = hasCommon ? moth.common_name : (moth.scientific_name || 'Unknown species');
+            const titleHtml = query ? highlightText(rawTitle, query) : rawTitle;
+            const name = hasCommon ? titleHtml : `<em>${titleHtml}</em>`;
+            const sci = query ? highlightText(moth.scientific_name, query) : (moth.scientific_name || '');
+            const fam = moth.family ? (query ? highlightText(moth.family, query) : moth.family) : '';
+            const loc = query ? highlightText(moth.place || 'Unknown location', query) : (moth.place || 'Unknown location');
+            const seq = moth.sequence_number != null ? moth.sequence_number : '';
+            return `
+                <div class="moth-card">
+                    <span class="heart" data-moth-id="${moth.id}" onclick="toggleFavorite(${moth.id})">♥</span>
+                    <a href="${moth.observation_url}" target="_blank">
+                        <img src="${moth.photo_url}" alt="${moth.common_name || moth.scientific_name || 'Nudibranch photo'}" loading="lazy">
+                    </a>
+                    <div class="moth-info">
+                        <div class="moth-number">Nudibranch #${seq}</div>
+                        <div class="timestamp">${formatDate(moth.sent_at)}</div>
+                        <div class="moth-name"><a href="${moth.observation_url}" target="_blank">${name}</a></div>
+                        <div class="scientific-name">${hasCommon ? sci : ''}</div>
+                        ${fam ? `<div class="family">Family: ${fam}</div>` : ''}
+                        <div class="location">📍 ${loc}</div>
                     </div>
-                    <button class="next-btn" onclick="generateQuestion()">Next Question →</button>
-                `;
-            } else {
-                // Show photo, pick from 4 text options
-                let question, correctAnswer, getOptionText;
-                
-                if (questionType === 'name') {
-                    question = 'What nudibranch is this?';
-                    correctAnswer = correctMoth.common_name || '';
-                    getOptionText = m => m.common_name || '';
-                } else if (questionType === 'family') {
-                    question = 'What family does this nudibranch belong to?';
-                    correctAnswer = correctMoth.family || '';
-                    getOptionText = m => m.family || '';
+                </div>
+            `;
+        }
+
+        function renderNextBatch() {
+            const container = document.getElementById('moths');
+            const sentinel = document.getElementById('scrollSentinel');
+            const slice = renderList.slice(renderCursor, renderCursor + RENDER_BATCH);
+            if (slice.length) {
+                const html = slice.map(m => cardHTML(m, renderQuery)).join('');
+                if (sentinel) {
+                    sentinel.insertAdjacentHTML('beforebegin', html);
                 } else {
-                    question = 'What is the scientific name?';
-                    correctAnswer = correctMoth.scientific_name || '';
-                    getOptionText = m => m.scientific_name || '';
+                    container.insertAdjacentHTML('beforeend', html);
                 }
-                
-                const allOptions = shuffle([correctMoth, ...wrongMoths]);
-                
-                container.innerHTML = `
-                    <img src="${correctMoth.photo_url}" alt="Quiz nudibranch">
-                    <div class="quiz-content">
-                        <div class="question">${question}</div>
-                        <div class="options">
-                            ${allOptions.map(moth => {
-                                const optionText = getOptionText(moth);
-                                return `<button class="option-btn" onclick="handleTextAnswer('${optionText.replace(/'/g, "\\'")}', '${correctAnswer.replace(/'/g, "\\'")}', this)">${optionText}</button>`;
-                            }).join('')}
-                        </div>
-                    </div>
-                    <button class="next-btn" onclick="generateQuestion()">Next Question →</button>
-                `;
+                renderCursor += slice.length;
+            }
+            if (renderCursor >= renderList.length) {
+                if (renderObserver) { renderObserver.disconnect(); renderObserver = null; }
+                if (sentinel) sentinel.remove();
+            }
+        }
+
+        function renderMoths(moths, query = '') {
+            const container = document.getElementById('moths');
+            if (renderObserver) { renderObserver.disconnect(); renderObserver = null; }
+
+            if (!moths.length) {
+                container.innerHTML = query
+                    ? '<div class="loading">No favorites match your search.</div>'
+                    : '<div class="loading">No favorites yet!</div>';
+                return;
+            }
+
+            renderList = moths;
+            renderQuery = query;
+            renderCursor = 0;
+
+            container.innerHTML = '<div id="scrollSentinel" aria-hidden="true"></div>';
+            renderNextBatch();
+
+            const sentinel = document.getElementById('scrollSentinel');
+            if (sentinel && 'IntersectionObserver' in window) {
+                renderObserver = new IntersectionObserver((entries) => {
+                    if (entries.some(e => e.isIntersecting)) renderNextBatch();
+                }, { rootMargin: '600px 0px' });
+                renderObserver.observe(sentinel);
+            } else if (sentinel) {
+                const pump = () => {
+                    renderNextBatch();
+                    if (renderCursor < renderList.length) requestAnimationFrame(pump);
+                };
+                requestAnimationFrame(pump);
             }
         }
         
-        function handleTextAnswer(selected, correct, btn) {
-            if (answered) return;
+        // --- Favorites ---
+        // Best-moths page only shows favorited moths. Toggling here always means
+        // "unfavorite" (and remove from view). On failure we restore the moth to
+        // its original position in allMoths.
+        async function toggleFavorite(mothId) {
+            if (!isAdmin) return;
             
-            const allBtns = document.querySelectorAll('.option-btn');
-            allBtns.forEach(b => b.classList.add('disabled'));
+            // Find the moth and remember its position for potential revert
+            const savedIdx = allMoths.findIndex(m => m.id === mothId);
+            if (savedIdx < 0) return;
+            const savedMoth = allMoths[savedIdx];
             
-            if (selected === correct) {
-                btn.classList.add('correct');
-            } else {
-                btn.classList.add('wrong');
-                allBtns.forEach(b => {
-                    if (b.textContent === correct) {
-                        b.classList.add('show-correct');
+            // Optimistic UI: remove from favorites and from displayed list
+            favorites = favorites.filter(id => id !== mothId);
+            allMoths = allMoths.filter(m => m.id !== mothId);
+            filterMoths();
+            
+            // Single-favorite API call (no full-list reconciliation)
+            const body = {
+                obs_id: mothId,
+                admin: ADMIN_SECRET,
+                action: 'remove',  // best-moths only unfavorites
+                observation: {
+                    id: savedMoth.id,
+                    common_name: savedMoth.common_name,
+                    scientific_name: savedMoth.scientific_name,
+                    family: savedMoth.family,
+                    place: savedMoth.place,
+                    observation_url: savedMoth.observation_url,
+                    photo_url: savedMoth.photo_url,
+                    attribution: savedMoth.attribution,
+                    observations_count: savedMoth.observations_count,
+                },
+            };
+            
+            try {
+                const response = await fetch(
+                    WORKER_URL.replace(/\/$/, '') + '/api/nudibranch/favorites/toggle',
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body),
                     }
-                });
-            }
-            
-            handleAnswer(selected, correct, correct);
-        }
-        
-        function handlePhotoAnswer(selectedId, correctId, correctName, el) {
-            if (answered) return;
-            
-            const allPhotos = document.querySelectorAll('.photo-option');
-            allPhotos.forEach(p => p.classList.add('disabled'));
-            
-            if (selectedId === correctId) {
-                el.classList.add('correct');
-            } else {
-                el.classList.add('wrong');
-                allPhotos.forEach(p => {
-                    if (parseInt(p.dataset.mothId) === correctId) {
-                        p.classList.add('correct');
+                );
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                const result = await response.json();
+                if (!result.ok) throw new Error(result.error || 'toggle failed');
+                
+                // Server says favorited=true (i.e., it WAS unfavorited and
+                // toggle re-added). Restore the moth to the view.
+                if (result.data.favorited) {
+                    if (!favorites.includes(mothId)) favorites.push(mothId);
+                    if (!allMoths.find(m => m.id === mothId)) {
+                        allMoths.splice(savedIdx, 0, savedMoth);
                     }
-                });
+                    filterMoths();
+                }
+            } catch (err) {
+                console.error('Failed to save favorite:', err);
+                // Revert optimistic removal: restore favorite and moth-in-list
+                if (!favorites.includes(mothId)) favorites.push(mothId);
+                if (!allMoths.find(m => m.id === mothId)) {
+                    allMoths.splice(savedIdx, 0, savedMoth);
+                }
+                filterMoths();
             }
-            
-            handleAnswer(selectedId, correctId, correctName);
         }
         
-        async function loadQuiz() {
+        // --- Load ---
+        // Reads from the D1-backed Worker API. The /all endpoint returns the
+        // full observation list + favorites for the group; we filter to the
+        // favorited subset. Observations come back sequence_number ASC, so the
+        // existing reverse() (newest-first) stays correct.
+        async function loadMoths() {
             try {
                 const response = await fetch(
                     WORKER_URL.replace(/\/$/, '') + '/api/nudibranch/all'
@@ -339,19 +360,36 @@
                 const result = await response.json();
                 if (!result.ok) throw new Error(result.error || 'API returned not ok');
 
-                const allMoths = result.data.observations || [];
+                const allMothsRaw = result.data.observations || [];
                 favorites = result.data.favorites || [];
 
-                favoriteMoths = allMoths.filter(m => favorites.includes(m.id));
+                if (!favorites.length) {
+                    document.getElementById('moths').innerHTML = '<div class="loading">No favorites yet!</div>';
+                    return;
+                }
 
-                generateQuestion();
+                allMoths = allMothsRaw.filter(m => favorites.includes(m.id)).reverse();
+
+                if (!allMoths.length) {
+                    document.getElementById('moths').innerHTML = '<div class="loading">No favorites yet!</div>';
+                    return;
+                }
+
+                renderMoths(allMoths);
             } catch (err) {
-                console.error('Failed to load quiz:', err);
-                document.getElementById('quiz').innerHTML = '<div class="loading">Error loading quiz</div>';
+                console.error('Failed to load moths:', err);
+                document.getElementById('moths').innerHTML = '<div class="loading">Error loading nudibranchs</div>';
             }
         }
         
-        loadQuiz();
+        // Wire up search input
+        document.getElementById('searchInput').addEventListener('input', filterMoths);
+        document.getElementById('searchInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') toggleSearch();
+        });
+        
+        checkAdmin();
+        loadMoths();
     </script>
 </body>
 </html>
