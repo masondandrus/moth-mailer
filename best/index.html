@@ -54,8 +54,8 @@
         a { color: inherit; text-decoration: none; }
         
         /* Heart icon */
-        .heart { position: absolute; top: 12px; right: 12px; font-size: 26px; cursor: pointer; transition: all 0.2s; display: none; z-index: 10; padding: 7px 9px; border-radius: 50%; background: rgba(255,255,255,0.80); line-height: 1; color: #e74c3c; }
-        .heart:hover { transform: scale(1.12); background: rgba(255,255,255,0.95); }
+        .heart { position: absolute; top: 15px; right: 15px; font-size: 24px; cursor: pointer; opacity: 0.8; transition: all 0.2s; display: none; color: #e74c3c; }
+        .heart:hover { transform: scale(1.1); opacity: 1; }
         .admin-mode .heart { display: block; }
     </style>
 </head>
@@ -212,26 +212,70 @@
         }
         
         // --- Favorites ---
+        // Best-moths page only shows favorited moths. Toggling here always means
+        // "unfavorite" (and remove from view). On failure we restore the moth to
+        // its original position in allMoths.
         async function toggleFavorite(mothId) {
             if (!isAdmin) return;
             
-            const index = favorites.indexOf(mothId);
-            if (index > -1) {
-                favorites.splice(index, 1);
-                // Remove from allMoths and re-render
-                allMoths = allMoths.filter(m => m.id !== mothId);
-                filterMoths();
-            }
+            // Find the moth and remember its position for potential revert
+            const savedIdx = allMoths.findIndex(m => m.id === mothId);
+            if (savedIdx < 0) return;
+            const savedMoth = allMoths[savedIdx];
             
-            // Save via Worker
+            // Optimistic UI: remove from favorites and from displayed list
+            favorites = favorites.filter(id => id !== mothId);
+            allMoths = allMoths.filter(m => m.id !== mothId);
+            filterMoths();
+            
+            // Single-favorite API call (no full-list reconciliation)
+            const body = {
+                obs_id: mothId,
+                admin: ADMIN_SECRET,
+                action: 'remove',  // best-moths only unfavorites
+                observation: {
+                    id: savedMoth.id,
+                    common_name: savedMoth.common_name,
+                    scientific_name: savedMoth.scientific_name,
+                    family: savedMoth.family,
+                    place: savedMoth.place,
+                    observation_url: savedMoth.observation_url,
+                    photo_url: savedMoth.photo_url,
+                    attribution: savedMoth.attribution,
+                    observations_count: savedMoth.observations_count,
+                },
+            };
+            
             try {
-                await fetch(WORKER_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ favorites })
-                });
+                const response = await fetch(
+                    WORKER_URL.replace(/\/$/, '') + '/api/moth/favorites/toggle',
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body),
+                    }
+                );
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                const result = await response.json();
+                if (!result.ok) throw new Error(result.error || 'toggle failed');
+                
+                // Server says favorited=true (i.e., it WAS unfavorited and
+                // toggle re-added). Restore the moth to the view.
+                if (result.data.favorited) {
+                    if (!favorites.includes(mothId)) favorites.push(mothId);
+                    if (!allMoths.find(m => m.id === mothId)) {
+                        allMoths.splice(savedIdx, 0, savedMoth);
+                    }
+                    filterMoths();
+                }
             } catch (err) {
                 console.error('Failed to save favorite:', err);
+                // Revert optimistic removal: restore favorite and moth-in-list
+                if (!favorites.includes(mothId)) favorites.push(mothId);
+                if (!allMoths.find(m => m.id === mothId)) {
+                    allMoths.splice(savedIdx, 0, savedMoth);
+                }
+                filterMoths();
             }
         }
         
