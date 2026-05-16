@@ -30,5 +30,6 @@ jobs:
           SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           GIST_ID: ${{ secrets.GIST_ID }}
+          API_SECRET: ${{ secrets.API_SECRET }}
           MOTH_NUMBER: ${{ github.run_number }}
         run: python moth_mailer.py
