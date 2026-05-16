@@ -69,11 +69,16 @@ TAXA = {
         "display": "Moth",
     },
     "nudibranch": {
-        "taxon_id": 47113,
+        # NOTE: the dict KEY and D1 taxon_group stay "nudibranch" for data
+        # continuity (existing rows/favorites/Worker config). Only the iNat
+        # taxon and the human-facing display changed: we now pull the broad
+        # Opisthobranchia (nudibranchs + sea hares, bubble/sap-sucking slugs,
+        # sea angels/butterflies, etc.) and present the section as "Sea Slugs".
+        "taxon_id": 551392,            # Opisthobranchia (infraclass)
         "without_taxon_id": None,
-        "require_common_name": False,  # many nudibranchs have no common name
+        "require_common_name": False,  # most of these slugs have no common name
         "uses_gist": False,            # D1-only by design
-        "display": "Nudibranch",
+        "display": "Sea Slug",
     },
     "amphibian": {
         "taxon_id": 20978,
