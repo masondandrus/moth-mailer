@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Amphibians for Anna</title>
+    <title>Best Amphibians</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: Georgia, serif; background-color: #faf9f7; color: #2d2d2d; padding: 40px 20px; }
@@ -22,7 +22,7 @@
         .search-toggle { position: fixed; top: 20px; right: 20px; z-index: 1000; background: white; border: 1px solid #ddd; border-radius: 8px; width: 42px; height: 42px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 18px; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
         .search-toggle:hover { background: #f5f5f5; }
         
-        /* Search bar — padded to avoid overlapping the fixed buttons */
+        /* Search bar */
         .search-bar { position: fixed; top: 0; left: 0; right: 0; z-index: 997; background: white; border-bottom: 1px solid #eee; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 12px 70px; transform: translateY(-100%); transition: transform 0.3s ease; }
         .search-bar.open { transform: translateY(0); }
         .search-wrapper { max-width: 600px; margin: 0 auto; position: relative; }
@@ -54,10 +54,8 @@
         a { color: inherit; text-decoration: none; }
         
         /* Heart icon */
-        .heart { position: absolute; top: 15px; right: 15px; font-size: 24px; cursor: pointer; opacity: 0.8; transition: all 0.2s; display: none; }
+        .heart { position: absolute; top: 15px; right: 15px; font-size: 24px; cursor: pointer; opacity: 0.8; transition: all 0.2s; display: none; color: #e74c3c; }
         .heart:hover { transform: scale(1.1); opacity: 1; }
-        .heart.favorited { color: #e74c3c; }
-        .heart.not-favorited { color: white; text-shadow: 0 0 3px rgba(0,0,0,0.5); }
         .admin-mode .heart { display: block; }
     
         .menu-section { padding: 10px 20px 4px; font-weight: bold; font-size: 0.95em; color: #555; }
@@ -95,12 +93,12 @@
     </div>
     
     <header>
-        <h1>🐸 Amphibians for Anna 🐸</h1>
-        <p class="subtitle">A new amphibian every hour.</p>
+        <h1>⭐ Best Amphibians ⭐</h1>
+        <p class="subtitle">Anna's favorite amphibians.</p>
     </header>
     <div id="resultCount" class="result-count"></div>
     <div id="moths" class="grid">
-        <div class="loading">Loading amphibians...</div>
+        <div class="loading">Loading best amphibians...</div>
     </div>
     <script>
         const WORKER_URL = 'https://moth-favorites.masondandrus.workers.dev/';
@@ -188,29 +186,21 @@
                     return fields.some(f => f.includes(query));
                 });
                 
-                countEl.textContent = `Showing ${filtered.length} of ${allMoths.length} moths`;
+                countEl.textContent = `Showing ${filtered.length} of ${allMoths.length} favorites`;
                 countEl.style.display = 'block';
                 renderMoths(filtered, query);
             }, 250);
         }
         
-        // --- Incremental rendering ---
-        // The full collection can be thousands of cards. Building all of them
-        // in one innerHTML assignment freezes the main thread ("Page
-        // Unresponsive"). Instead we render in batches: an initial batch on
-        // load/search, then more as the user scrolls a sentinel into view via
-        // IntersectionObserver (no scroll-event thrash). Scales to any size.
+        // --- Incremental rendering (see index.html for rationale) ---
         const RENDER_BATCH = 60;
-        let renderList = [];      // the moths to display (all or filtered)
-        let renderQuery = '';     // active search query (for highlighting)
-        let renderCursor = 0;     // how many of renderList are painted
+        let renderList = [];
+        let renderQuery = '';
+        let renderCursor = 0;
         let renderObserver = null;
 
         function cardHTML(moth, query) {
-            const isFav = favorites.includes(moth.id);
             const hasCommon = !!moth.common_name;
-            // Title: common name if present, else italicized scientific name.
-            // Both branches still get search-term highlighting.
             const rawTitle = hasCommon ? moth.common_name : (moth.scientific_name || 'Unknown species');
             const titleHtml = query ? highlightText(rawTitle, query) : rawTitle;
             const name = hasCommon ? titleHtml : `<em>${titleHtml}</em>`;
@@ -220,7 +210,7 @@
             const seq = moth.sequence_number != null ? moth.sequence_number : '';
             return `
                 <div class="moth-card">
-                    <span class="heart ${isFav ? 'favorited' : 'not-favorited'}" data-moth-id="${moth.id}" onclick="toggleFavorite(${moth.id})">${isFav ? '♥' : '♡'}</span>
+                    <span class="heart" data-moth-id="${moth.id}" onclick="toggleFavorite(${moth.id})">♥</span>
                     <a href="${moth.observation_url}" target="_blank">
                         <img src="${moth.photo_url}" alt="${moth.common_name || moth.scientific_name || 'Amphibian photo'}" loading="lazy">
                     </a>
@@ -249,7 +239,6 @@
                 }
                 renderCursor += slice.length;
             }
-            // All painted — stop observing and drop the sentinel.
             if (renderCursor >= renderList.length) {
                 if (renderObserver) { renderObserver.disconnect(); renderObserver = null; }
                 if (sentinel) sentinel.remove();
@@ -258,13 +247,12 @@
 
         function renderMoths(moths, query = '') {
             const container = document.getElementById('moths');
-            // Tear down any previous observer before re-rendering.
             if (renderObserver) { renderObserver.disconnect(); renderObserver = null; }
 
             if (!moths.length) {
                 container.innerHTML = query
-                    ? '<div class="loading">No amphibians match your search.</div>'
-                    : '<div class="loading">No amphibians yet. Check back soon!</div>';
+                    ? '<div class="loading">No favorites match your search.</div>'
+                    : '<div class="loading">No favorites yet!</div>';
                 return;
             }
 
@@ -272,12 +260,9 @@
             renderQuery = query;
             renderCursor = 0;
 
-            // Fresh container with a sentinel the observer watches.
             container.innerHTML = '<div id="scrollSentinel" aria-hidden="true"></div>';
             renderNextBatch();
 
-            // If everything fit in the first batch the sentinel is already
-            // gone; otherwise observe it to stream subsequent batches.
             const sentinel = document.getElementById('scrollSentinel');
             if (sentinel && 'IntersectionObserver' in window) {
                 renderObserver = new IntersectionObserver((entries) => {
@@ -285,8 +270,6 @@
                 }, { rootMargin: '600px 0px' });
                 renderObserver.observe(sentinel);
             } else if (sentinel) {
-                // No IntersectionObserver support: fall back to rendering all
-                // remaining in chunks via rAF so the thread stays responsive.
                 const pump = () => {
                     renderNextBatch();
                     if (renderCursor < renderList.length) requestAnimationFrame(pump);
@@ -296,55 +279,39 @@
         }
         
         // --- Favorites ---
-        // Single-favorite API call. Each click changes ONE favorite. The Worker
-        // Update a single heart in place (class + glyph) without re-rendering
-        // the grid. Re-rendering would reset the incremental cursor and snap
-        // the scroll position back to the top on every favorite toggle.
-        function paintHeart(mothId) {
-            const fav = favorites.includes(mothId);
-            document.querySelectorAll(`.heart[data-moth-id="${mothId}"]`).forEach(el => {
-                el.classList.toggle('favorited', fav);
-                el.classList.toggle('not-favorited', !fav);
-                el.textContent = fav ? '♥' : '♡';
-            });
-        }
-
-        // never sees a full favorites list from us, so a stale tab can no longer
-        // wipe other devices' adds via the legacy POST / reconciliation path.
+        // Best-moths page only shows favorited moths. Toggling here always means
+        // "unfavorite" (and remove from view). On failure we restore the moth to
+        // its original position in allMoths.
         async function toggleFavorite(mothId) {
             if (!isAdmin) return;
             
-            const wasFavorited = favorites.includes(mothId);
+            // Find the moth and remember its position for potential revert
+            const savedIdx = allMoths.findIndex(m => m.id === mothId);
+            if (savedIdx < 0) return;
+            const savedMoth = allMoths[savedIdx];
             
-            // Optimistic UI update (in place — no grid rebuild)
-            if (wasFavorited) {
-                favorites = favorites.filter(id => id !== mothId);
-            } else {
-                favorites.push(mothId);
-            }
-            paintHeart(mothId);
+            // Optimistic UI: remove from favorites and from displayed list
+            favorites = favorites.filter(id => id !== mothId);
+            allMoths = allMoths.filter(m => m.id !== mothId);
+            filterMoths();
             
-            // Build request body. Send observation data too so the Worker can
-            // insert the observation into D1 if it's missing (defensive).
-            const moth = allMoths.find(m => m.id === mothId);
+            // Single-favorite API call (no full-list reconciliation)
             const body = {
                 obs_id: mothId,
                 admin: ADMIN_SECRET,
-                action: wasFavorited ? 'remove' : 'add',
+                action: 'remove',  // best-moths only unfavorites
+                observation: {
+                    id: savedMoth.id,
+                    common_name: savedMoth.common_name,
+                    scientific_name: savedMoth.scientific_name,
+                    family: savedMoth.family,
+                    place: savedMoth.place,
+                    observation_url: savedMoth.observation_url,
+                    photo_url: savedMoth.photo_url,
+                    attribution: savedMoth.attribution,
+                    observations_count: savedMoth.observations_count,
+                },
             };
-            if (moth) {
-                body.observation = {
-                    id: moth.id,
-                    common_name: moth.common_name,
-                    scientific_name: moth.scientific_name,
-                    family: moth.family,
-                    place: moth.place,
-                    observation_url: moth.observation_url,
-                    photo_url: moth.photo_url,
-                    attribution: moth.attribution,
-                    observations_count: moth.observations_count,
-                };
-            }
             
             try {
                 const response = await fetch(
@@ -359,35 +326,31 @@
                 const result = await response.json();
                 if (!result.ok) throw new Error(result.error || 'toggle failed');
                 
-                // Reconcile UI with server's authoritative state. In the
-                // common case (UI matched server going in) this is a no-op.
-                const serverFavorited = result.data.favorited;
-                const inUI = favorites.includes(mothId);
-                if (serverFavorited && !inUI) {
-                    favorites.push(mothId);
-                    paintHeart(mothId);
-                } else if (!serverFavorited && inUI) {
-                    favorites = favorites.filter(id => id !== mothId);
-                    paintHeart(mothId);
+                // Server says favorited=true (i.e., it WAS unfavorited and
+                // toggle re-added). Restore the moth to the view.
+                if (result.data.favorited) {
+                    if (!favorites.includes(mothId)) favorites.push(mothId);
+                    if (!allMoths.find(m => m.id === mothId)) {
+                        allMoths.splice(savedIdx, 0, savedMoth);
+                    }
+                    filterMoths();
                 }
             } catch (err) {
                 console.error('Failed to save favorite:', err);
-                // Revert optimistic update
-                if (wasFavorited) {
-                    favorites.push(mothId);
-                } else {
-                    favorites = favorites.filter(id => id !== mothId);
+                // Revert optimistic removal: restore favorite and moth-in-list
+                if (!favorites.includes(mothId)) favorites.push(mothId);
+                if (!allMoths.find(m => m.id === mothId)) {
+                    allMoths.splice(savedIdx, 0, savedMoth);
                 }
-                paintHeart(mothId);
+                filterMoths();
             }
         }
         
         // --- Load ---
-        // Reads from the D1-backed Worker API instead of the gist. The Worker
-        // returns observations ordered by sequence_number ASC (oldest first),
-        // identical to the old gist file order, so the existing reverse() for
-        // newest-first display stays correct. No truncation/raw_url handling
-        // needed — D1 has no 300KB file-size limit.
+        // Reads from the D1-backed Worker API. The /all endpoint returns the
+        // full observation list + favorites for the group; we filter to the
+        // favorited subset. Observations come back sequence_number ASC, so the
+        // existing reverse() (newest-first) stays correct.
         async function loadMoths() {
             try {
                 const response = await fetch(
@@ -397,10 +360,21 @@
                 const result = await response.json();
                 if (!result.ok) throw new Error(result.error || 'API returned not ok');
 
-                const moths = result.data.observations || [];
+                const allMothsRaw = result.data.observations || [];
                 favorites = result.data.favorites || [];
 
-                allMoths = [...moths].reverse();
+                if (!favorites.length) {
+                    document.getElementById('moths').innerHTML = '<div class="loading">No favorites yet!</div>';
+                    return;
+                }
+
+                allMoths = allMothsRaw.filter(m => favorites.includes(m.id)).reverse();
+
+                if (!allMoths.length) {
+                    document.getElementById('moths').innerHTML = '<div class="loading">No favorites yet!</div>';
+                    return;
+                }
+
                 renderMoths(allMoths);
             } catch (err) {
                 console.error('Failed to load moths:', err);
