@@ -37,9 +37,9 @@
         a { color: #6b705c; }
         
         /* Heart icon */
-        .heart { position: absolute; top: 12px; right: 12px; font-size: 26px; cursor: pointer; transition: all 0.2s; display: none; z-index: 10; padding: 7px 9px; border-radius: 50%; background: rgba(255,255,255,0.80); line-height: 1; color: rgba(0,0,0,0.35); }
-        .heart:hover { transform: scale(1.12); background: rgba(255,255,255,0.95); }
-        .heart.favorited { color: #e74c3c; }
+        .heart { position: absolute; top: 15px; right: 15px; font-size: 24px; cursor: pointer; opacity: 0.8; transition: all 0.2s; display: none; color: white; text-shadow: 0 0 3px rgba(0,0,0,0.5); }
+        .heart:hover { transform: scale(1.1); opacity: 1; }
+        .heart.favorited { color: #e74c3c; text-shadow: none; }
         .admin-mode .heart { display: block; }
     </style>
 </head>
@@ -108,9 +108,10 @@
             if (!isAdmin || !currentMoth) return;
             
             const heart = document.querySelector('.heart');
-            const isFav = favorites.includes(currentMoth.id);
+            const wasFavorited = favorites.includes(currentMoth.id);
             
-            if (isFav) {
+            // Optimistic UI
+            if (wasFavorited) {
                 favorites = favorites.filter(id => id !== currentMoth.id);
                 heart.classList.remove('favorited');
                 heart.textContent = '♡';
@@ -120,19 +121,54 @@
                 heart.textContent = '♥';
             }
             
+            // Single-favorite API call. Always send observation data — on this
+            // page the moth is freshly fetched from iNat and may not be in D1
+            // yet, so the Worker may need to insert it before favoriting.
+            const body = {
+                obs_id: currentMoth.id,
+                admin: ADMIN_SECRET,
+                action: wasFavorited ? 'remove' : 'add',
+                observation: {
+                    id: currentMoth.id,
+                    common_name: currentMoth.common_name,
+                    scientific_name: currentMoth.scientific_name,
+                    family: currentMoth.family,
+                    place: currentMoth.place,
+                    observation_url: currentMoth.observation_url,
+                    photo_url: currentMoth.photo_url,
+                    attribution: currentMoth.attribution,
+                    observations_count: currentMoth.observations_count,
+                },
+            };
+            
             try {
-                const body = isFav
-                    ? { favorites }
-                    : { favorites, newMoth: currentMoth };
-                await fetch(WORKER_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                });
+                const response = await fetch(
+                    WORKER_URL.replace(/\/$/, '') + '/api/moth/favorites/toggle',
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body),
+                    }
+                );
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                const result = await response.json();
+                if (!result.ok) throw new Error(result.error || 'toggle failed');
+                
+                // Reconcile UI with server state (in case it differs from our optimistic guess)
+                const serverFavorited = result.data.favorited;
+                if (serverFavorited && !favorites.includes(currentMoth.id)) {
+                    favorites.push(currentMoth.id);
+                    heart.classList.add('favorited');
+                    heart.textContent = '♥';
+                } else if (!serverFavorited && favorites.includes(currentMoth.id)) {
+                    favorites = favorites.filter(id => id !== currentMoth.id);
+                    heart.classList.remove('favorited');
+                    heart.textContent = '♡';
+                }
             } catch (err) {
                 console.error('Failed to save favorite:', err);
-                // Revert on failure
-                if (isFav) {
+                // Revert optimistic update on failure
+                if (wasFavorited) {
                     favorites.push(currentMoth.id);
                     heart.classList.add('favorited');
                     heart.textContent = '♥';
