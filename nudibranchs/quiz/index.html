@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nudibranch Quiz</title>
+    <title>Sea Slug Quiz</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: Georgia, serif; background-color: #faf9f7; color: #2d2d2d; padding: 40px 20px 100px 20px; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
@@ -11,7 +11,7 @@
         /* Hamburger Menu */
         .menu-toggle { position: fixed; top: 20px; left: 20px; z-index: 1000; background: white; border: 1px solid #ddd; border-radius: 8px; padding: 10px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         .menu-toggle span { display: block; width: 20px; height: 2px; background: #2d2d2d; margin: 4px 0; }
-        .menu { position: fixed; top: 0; left: -250px; width: 250px; height: 100%; background: white; box-shadow: 2px 0 10px rgba(0,0,0,0.1); transition: left 0.3s; z-index: 999; padding: 80px 20px 20px; }
+        .menu { position: fixed; top: 0; left: -250px; width: 250px; height: 100%; background: white; box-shadow: 2px 0 10px rgba(0,0,0,0.1); transition: left 0.3s; z-index: 999; padding: 80px 20px 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
         .menu.open { left: 0; }
         .menu a { display: block; padding: 15px 10px; color: #2d2d2d; text-decoration: none; border-bottom: 1px solid #eee; }
         .menu a:hover { color: #c45a7a; }
@@ -65,7 +65,7 @@
     </div>
     <div class="menu-overlay" onclick="toggleMenu()"></div>
     <nav class="menu">
-        <div class="menu-section">🐌 Nudibranchs</div>
+        <div class="menu-section">🐌 Sea Slugs</div>
         <a href="/nudibranchs/">&nbsp;&nbsp;Collection</a>
         <a href="/nudibranchs/random/">&nbsp;&nbsp;Random</a>
         <a href="/nudibranchs/best/">&nbsp;&nbsp;Best</a>
@@ -83,8 +83,8 @@
     </nav>
     
     <header>
-        <h1>📝 Nudibranch Quiz</h1>
-        <p class="subtitle">Test your nudibranch knowledge!</p>
+        <h1>📝 Sea Slug Quiz</h1>
+        <p class="subtitle">Test your sea slug knowledge!</p>
         <div class="score">Score: <span id="correct">0</span> / <span id="total">0</span></div>
     </header>
     
@@ -247,7 +247,7 @@
                         <div class="photo-grid">
                             ${allOptions.map(moth => `
                                 <div class="photo-option" data-moth-id="${moth.id}" onclick="handlePhotoAnswer(${moth.id}, ${correctMoth.id}, '${correctCommon.replace(/'/g, "\\'")}', this)">
-                                    <img src="${moth.photo_url}" alt="Nudibranch option">
+                                    <img src="${moth.photo_url}" alt="Sea Slug option">
                                 </div>
                             `).join('')}
                         </div>
@@ -259,11 +259,11 @@
                 let question, correctAnswer, getOptionText;
                 
                 if (questionType === 'name') {
-                    question = 'What nudibranch is this?';
+                    question = 'What sea slug is this?';
                     correctAnswer = correctMoth.common_name || '';
                     getOptionText = m => m.common_name || '';
                 } else if (questionType === 'family') {
-                    question = 'What family does this nudibranch belong to?';
+                    question = 'What family does this sea slug belong to?';
                     correctAnswer = correctMoth.family || '';
                     getOptionText = m => m.family || '';
                 } else {
@@ -275,7 +275,7 @@
                 const allOptions = shuffle([correctMoth, ...wrongMoths]);
                 
                 container.innerHTML = `
-                    <img src="${correctMoth.photo_url}" alt="Quiz nudibranch">
+                    <img src="${correctMoth.photo_url}" alt="Quiz sea slug">
                     <div class="quiz-content">
                         <div class="question">${question}</div>
                         <div class="options">
