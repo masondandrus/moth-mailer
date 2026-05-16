@@ -55,7 +55,9 @@
         
         .loading { text-align: center; padding: 60px; color: #888; }
         a { color: #6b705c; }
-    </style>
+    
+        .menu-section { padding: 10px 20px 4px; font-weight: bold; font-size: 0.95em; color: #555; }
+</style>
 </head>
 <body>
     <div class="menu-toggle" onclick="toggleMenu()">
@@ -63,10 +65,21 @@
     </div>
     <div class="menu-overlay" onclick="toggleMenu()"></div>
     <nav class="menu">
-        <a href="/">🦋 Home</a>
-        <a href="/random">🎲 Random Moth</a>
-        <a href="/best">⭐ Best Moths</a>
-        <a href="/quiz">📝 Quiz</a>
+        <div class="menu-section">🦋 Moths</div>
+        <a href="/">&nbsp;&nbsp;Collection</a>
+        <a href="/random">&nbsp;&nbsp;Random</a>
+        <a href="/best">&nbsp;&nbsp;Best</a>
+        <a href="/quiz">&nbsp;&nbsp;Quiz</a>
+        <div class="menu-section">🐌 Nudibranchs</div>
+        <a href="/nudibranchs/">&nbsp;&nbsp;Collection</a>
+        <a href="/nudibranchs/random/">&nbsp;&nbsp;Random</a>
+        <a href="/nudibranchs/best/">&nbsp;&nbsp;Best</a>
+        <a href="/nudibranchs/quiz/">&nbsp;&nbsp;Quiz</a>
+        <div class="menu-section">🐸 Amphibians</div>
+        <a href="/amphibians/">&nbsp;&nbsp;Collection</a>
+        <a href="/amphibians/random/">&nbsp;&nbsp;Random</a>
+        <a href="/amphibians/best/">&nbsp;&nbsp;Best</a>
+        <a href="/amphibians/quiz/">&nbsp;&nbsp;Quiz</a>
     </nav>
     
     <header>
