@@ -69,18 +69,11 @@ TAXA = {
         "display": "Moth",
     },
     "nudibranch": {
-        # KEY and D1 taxon_group stay "nudibranch" for data continuity
-        # (existing rows / favorites / Worker config). Display = "Sea Slug".
-        # Broad sea-slug union of FIVE independently verified, LIVE iNat nodes
-        # (the deprecated Opisthobranchia 551392 returned ~nothing):
-        #   47113 Nudibranchia · 47801 Sacoglossa · 47577 Anaspidea ·
-        #   49784 Cephalaspidea · 775833 Pleurobranchida
-        # iNat's /observations endpoint accepts a comma-separated taxon_id.
-        "taxon_id": "47113,47801,47577,49784,775833",
+        "taxon_id": 47113,
         "without_taxon_id": None,
-        "require_common_name": False,  # most of these slugs have no common name
+        "require_common_name": False,  # many nudibranchs have no common name
         "uses_gist": False,            # D1-only by design
-        "display": "Sea Slug",
+        "display": "Nudibranch",
     },
     "amphibian": {
         "taxon_id": 20978,
@@ -324,6 +317,19 @@ def fetch_new_observations(group, sent_ids, sent_species, want):
         "photo_licensed": "true",
         "per_page": 200,
         "order_by": "random",
+        # Exclude observations explicitly annotated Dead (term_id=17 "Alive or
+        # Dead", value 19 = Dead). `term_id_or_unknown` is the key trick:
+        # without it, `without_term_value_id` also drops unannotated obs,
+        # which is most of them. With it, we keep:
+        #   - unannotated obs (no Alive/Dead value)
+        #   - obs marked Alive (18) or Cannot Be Determined (20)
+        # and exclude only obs marked Dead. Confirmed working per iNat forum
+        # follow-up Nov 2025: forum.inaturalist.org/t/.../30148 (item #24).
+        # Universal across creatures: amphibians get hit most (roadkill etc.);
+        # moths/nudibranchs almost never have this annotation, so this is a
+        # no-op for them but cheap insurance.
+        "term_id_or_unknown": 17,
+        "without_term_value_id": 19,
     }
     if cfg["without_taxon_id"] is not None:
         params["without_taxon_id"] = cfg["without_taxon_id"]
