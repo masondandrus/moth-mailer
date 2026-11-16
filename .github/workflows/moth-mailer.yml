@@ -1,8 +1,47 @@
+# Hourly Critter Mailer
+#
+# TRIGGERING CHANGED 2026-07-28.
+#
+# Primary trigger is now a Cloudflare Cron Trigger on the moth-favorites
+# Worker, which calls this workflow's workflow_dispatch endpoint at :00 every
+# hour. GitHub's own `schedule:` was dropping roughly two of every three runs
+# and starting the survivors 12-47 minutes late, which is why the site was
+# delivering ~9 critters a day instead of 24.
+#
+# The `schedule:` block below is kept ONLY as a fallback, moved to :30 so it
+# lands in the middle of the Cloudflare interval. moth_mailer.py refuses to
+# post if the group's newest observation is under 45 minutes old, so the two
+# schedulers can never double-post:
+#
+#   Cloudflare fires :00 -> posts.  GitHub fires :30 -> row is 30m old -> skip.
+#   Cloudflare fails  :00.          GitHub fires :30 -> row is 90m old -> posts.
+#
+# Do not remove the schedule: block. It is the safety net for the day the
+# Cloudflare trigger, the Worker, or the GH_TOKEN breaks.
+
 name: Hourly Critter Mailer
+
 on:
   schedule:
-    - cron: '57 * * * *'
+    - cron: '30 * * * *'      # FALLBACK ONLY — primary trigger is Cloudflare
   workflow_dispatch:
+    inputs:
+      force:
+        description: 'Ignore the 45-minute minimum-interval guard'
+        type: boolean
+        default: false
+      seed:
+        description: 'Observations to fetch per group this run (normally 1)'
+        type: string
+        default: '1'
+
+# One run at a time. The interval guard already prevents double-posting, but
+# this closes the narrow race where a manual dispatch overlaps a scheduled run
+# and both read "nothing recent" before either writes.
+concurrency:
+  group: critter-mailer
+  cancel-in-progress: false
+
 jobs:
   send-critter:
     runs-on: ubuntu-latest
@@ -20,6 +59,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
       - name: Install dependencies
         run: |
@@ -35,4 +75,19 @@ jobs:
           GIST_ID: ${{ secrets.GIST_ID }}
           API_SECRET: ${{ secrets.API_SECRET }}
           MOTH_NUMBER: ${{ github.run_number }}
-        run: python moth_mailer.py --group=${{ matrix.group }}
+          # Passed as env, not interpolated into the script body: on a
+          # schedule event the inputs context is empty, and env defaulting
+          # with :- handles that cleanly. It also keeps a dispatch input from
+          # ever being evaluated as shell.
+          GROUP: ${{ matrix.group }}
+          INPUT_SEED: ${{ inputs.seed }}
+          INPUT_FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          SEED="${INPUT_SEED:-1}"
+          ARGS=(--group="$GROUP" --seed="$SEED")
+          if [ "${INPUT_FORCE:-false}" = "true" ]; then
+            ARGS+=(--force)
+          fi
+          echo "Running: python moth_mailer.py ${ARGS[*]}"
+          python moth_mailer.py "${ARGS[@]}"
