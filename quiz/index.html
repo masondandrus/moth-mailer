@@ -48,6 +48,9 @@
         .feedback { margin-top: 20px; font-size: 1.1em; padding: 15px; border-radius: 8px; }
         .feedback.correct { background: #e8f5e9; color: #2e7d32; }
         .feedback.wrong { background: #ffebee; color: #c62828; }
+        .epigraph { margin-top: 20px; padding: 18px 20px; font-style: italic; color: #555; line-height: 1.6; text-align: left; border-top: 1px solid #eee; animation: fadeIn 1.5s ease; }
+        .epigraph cite { display: block; margin-top: 10px; font-size: 0.85em; color: #999; font-style: normal; text-align: right; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         
         .next-btn { background: #6b705c; color: white; border: none; padding: 12px 40px; font-size: 1em; font-family: Georgia, serif; border-radius: 6px; cursor: pointer; transition: background 0.2s; margin-top: 20px; display: none; }
         .next-btn:hover { background: #5a5f4e; }
@@ -80,6 +83,7 @@
         <a href="/amphibians/random/">&nbsp;&nbsp;Random</a>
         <a href="/amphibians/best/">&nbsp;&nbsp;Best</a>
         <a href="/amphibians/quiz/">&nbsp;&nbsp;Quiz</a>
+        <a href="/publications/">📄 Publications</a>
     </nav>
     
     <header>
@@ -101,6 +105,8 @@
         let totalCount = 0;
         let currentCorrectAnswer = null;
         let answered = false;
+        let streak = 0;
+        const STREAK_FOR_QUOTE = 15;
         
         function toggleMenu() {
             document.querySelector('.menu').classList.toggle('open');
@@ -138,6 +144,13 @@
             }
             
             container.querySelector('.quiz-content').appendChild(feedbackDiv);
+
+            if (isCorrect && streak === STREAK_FOR_QUOTE) {
+                const quote = document.createElement('blockquote');
+                quote.className = 'epigraph';
+                quote.innerHTML = 'The manifold perfections of creatures - their truth, their goodness, their beauty all reflect the infinite perfection of God. Consequently we can name God by taking his creatures&#39; perfections as our starting point, &ldquo;for from the greatness and beauty of created things comes a corresponding perception of their Creator.&rdquo;<cite>&mdash; Catechism of the Catholic Church, 41 (quoting Wisdom 13:5)</cite>';
+                container.querySelector('.quiz-content').appendChild(quote);
+            }
             container.querySelector('.next-btn').classList.add('show');
         }
         
@@ -147,7 +160,7 @@
             totalCount++;
             
             const isCorrect = selected === correct;
-            if (isCorrect) correctCount++;
+            if (isCorrect) { correctCount++; streak++; } else { streak = 0; }
             updateScore();
             
             showFeedback(isCorrect, correctDisplay);
