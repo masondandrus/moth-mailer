@@ -1,0 +1,127 @@
+# Weekly D1 Backup
+#
+# Snapshots every taxon group's observations AND favorites out of D1 and
+# commits them to this repo. Two reasons this exists:
+#
+#   1. _DATA_SAFETY.md mandates a backup before destructive operations, but
+#      nothing was backing up on a timer. Anna's favorites are the one thing
+#      in this system that cannot be regenerated from iNaturalist.
+#   2. The commit doubles as repository activity, which keeps GitHub from
+#      disabling the fallback `schedule:` in moth-mailer.yml after 60 days
+#      of inactivity.
+#
+# Snapshots go to backups/<group>.json in the Worker's own {ok, data} envelope
+# shape, pretty-printed with sorted keys so week-over-week git diffs are
+# readable and delta-compress well.
+#
+# SHRINKAGE GUARD: if a group's new snapshot has more than 10% fewer
+# observations or favorites than the committed one, that file is left alone
+# and the job fails. A half-broken Worker response must never be able to
+# overwrite a good backup with a worse one.
+#
+# Restore: the JSON is exactly what GET /api/<group>/all returns. Observations
+# can be re-POSTed with their explicit sequence_number and sent_at (the Worker
+# accepts both). Favorites must be re-applied through the admin UI, per
+# _DATA_SAFETY.md §Restoring.
+
+name: Weekly D1 Backup
+
+on:
+  schedule:
+    - cron: '17 10 * * 0'     # Sundays 10:17 UTC (~3:17am Pacific)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: d1-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    env:
+      WORKER_URL: https://moth-favorites.masondandrus.workers.dev
+      # Refuse to overwrite a backup whose new snapshot is below this
+      # percentage of the committed one. 90 = tolerate up to 10% shrinkage
+      # (un-favoriting, dead-critter cleanup); reject anything worse.
+      MIN_RETAINED_PERCENT: 90
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Snapshot D1 through the Worker
+        id: snap
+        run: |
+          set -uo pipefail
+          mkdir -p backups
+          FAILED=0
+
+          for GROUP in moth nudibranch amphibian; do
+            echo "::group::$GROUP"
+            TMP="$(mktemp)"
+
+            if ! curl -fsSL --retry 3 --retry-delay 5 --max-time 120 \
+                 "$WORKER_URL/api/$GROUP/all" -o "$TMP"; then
+              echo "::error::$GROUP — fetch from Worker failed"
+              FAILED=1; echo "::endgroup::"; continue
+            fi
+
+            if [ "$(jq -r '.ok // false' "$TMP")" != "true" ]; then
+              echo "::error::$GROUP — Worker returned ok=false: $(jq -r '.error // "?"' "$TMP")"
+              FAILED=1; echo "::endgroup::"; continue
+            fi
+
+            NEW_OBS=$(jq '.data.observations | length' "$TMP")
+            NEW_FAV=$(jq '.data.favorites | length' "$TMP")
+            OLD_OBS=0
+            OLD_FAV=0
+            if [ -f "backups/$GROUP.json" ]; then
+              OLD_OBS=$(jq '.data.observations | length' "backups/$GROUP.json" 2>/dev/null || echo 0)
+              OLD_FAV=$(jq '.data.favorites | length' "backups/$GROUP.json" 2>/dev/null || echo 0)
+            fi
+
+            echo "observations: $OLD_OBS -> $NEW_OBS"
+            echo "favorites:    $OLD_FAV -> $NEW_FAV"
+
+            MIN_OBS=$(( OLD_OBS * MIN_RETAINED_PERCENT / 100 ))
+            MIN_FAV=$(( OLD_FAV * MIN_RETAINED_PERCENT / 100 ))
+
+            if [ "$NEW_OBS" -lt "$MIN_OBS" ] || [ "$NEW_FAV" -lt "$MIN_FAV" ]; then
+              echo "::error::$GROUP — REFUSING to overwrite backups/$GROUP.json. New snapshot has $NEW_OBS observations / $NEW_FAV favorites against a committed $OLD_OBS / $OLD_FAV, below the ${MIN_RETAINED_PERCENT}% floor. The existing backup has been left untouched. Investigate before re-running."
+              FAILED=1; echo "::endgroup::"; continue
+            fi
+
+            if [ "$NEW_OBS" -lt "$OLD_OBS" ] || [ "$NEW_FAV" -lt "$OLD_FAV" ]; then
+              echo "::warning::$GROUP shrank but stayed within tolerance ($OLD_OBS/$OLD_FAV -> $NEW_OBS/$NEW_FAV). Expected after un-favoriting or a dead-critter cleanup; surprising otherwise."
+            fi
+
+            jq -S '.' "$TMP" > "backups/$GROUP.json"
+            echo "wrote backups/$GROUP.json"
+            echo "::endgroup::"
+          done
+
+          echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Commit whatever succeeded
+        run: |
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backups/
+          if git diff --staged --quiet; then
+            echo "No backup changes to commit."
+          else
+            git commit -m "chore(backup): weekly D1 snapshot $(date -u +%Y-%m-%d)"
+            git push
+          fi
+
+      - name: Fail the job if any group did not back up
+        if: steps.snap.outputs.failed == '1'
+        run: |
+          echo "One or more groups failed to back up. See the annotations above."
+          exit 1
